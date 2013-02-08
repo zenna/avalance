@@ -1,60 +1,17 @@
 (ns avalance.core)
 
+(require 'avalance.helpers)
+
+
+
 ; BIG TODO - be able to generate functions and evaluate them
 ; Transformations need to be type consistent
 ; Syntactically correct
 ; Ensure that every tranformation provides the correct number of arguments
 ; That they are type consisten
 
-;Helprs
-(defn between
-  "Applies f(x,y) to list[n,n+1] to create a list of size count - 1"
-  [f, coll]
-  (if (= (count coll) 1)
-    []
-    (concat [(f (first coll) (second coll))] (between f (rest coll)))))
- 
-(defn lines
-	"returns [(f0 v0),...,(fn vn)]"
-		[funcs values]
-		(if (= (count values) 0)
-			[]
-			(concat [((first funcs) (first values))]
-				(lines (rest funcs) (rest values)))))
-
-(defn max-elements
-  "Returns elements of coll where f(elements) is maximal"
-  [f coll]
-  (let [max-val (apply max (map f coll))]
-    (filter (fn [x] (= (f x) max-val)) coll)))
-
-(defn sum
-  [coll]
-  (reduce + coll))
-
-(defn rand-bool
-  "Return uniform over true,false"
-  []
-  (= (rand-int 2) 1))
-
-(defn rand-choice
-  "Choice element from coll"
-  [coll]
-  (nth coll (rand-int (count coll))))
-
-; TODO
-(defn rand-choice-weighted
-  "Choice element from coll"
-  [coll weights]
-  (nth coll (rand-int (count coll) 1)))
-
 ;TSP stuff
 (def init-tour [[2 0.1] [0.8 0.3] [0.2 0.16] [0.267 0.61]])
-
-(defn square
-	"x^2"
-	[x]
-	(* x x))
 
 (defn tour-length
   "total length"

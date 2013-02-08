@@ -44,9 +44,3 @@
 	"x^2"
 	[x]
 	(* x x))
-
-(defn tour-length
-  "total length"
-  [tour]
-  (reduce + (between (fn [x y] (+ (square (- (nth x 0) (nth y 0)))
-                       (square (- (nth x 1) (nth y 1))))) tour)))
