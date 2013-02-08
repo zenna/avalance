@@ -14,11 +14,14 @@
 			(concat [((first funcs) (first values))]
 				(lines (rest funcs) (rest values)))))
 
+;FIXME : currently returning only first
 (defn max-elements
   "Returns elements of coll where f(elements) is maximal"
   [f coll]
-  (let [max-val (apply max (map f coll))]
-    (filter (fn [x] (= (f x) max-val)) coll)))
+  (let [mapped-coll (map f coll)
+        max-val (apply max mapped-coll)
+        best-index (.indexOf mapped-coll max-val)]
+    [(nth coll best-index)]))
 
 (defn sum
   [coll]
@@ -29,10 +32,17 @@
   []
   (= (rand-int 2) 1))
 
+; (defn rand-choice
+;   "Choice element from coll"
+;   [coll]
+;   (nth coll (rand-int (count coll))))
+
 (defn rand-choice
   "Choice element from coll"
   [coll]
-  (nth coll (rand-int (count coll))))
+  (let [i (rand-int (count coll))]
+    (do 
+      (nth coll i))))
 
 ; TODO
 (defn rand-choice-weighted
