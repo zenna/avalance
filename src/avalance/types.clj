@@ -19,7 +19,7 @@
 (declare same-type?)
 
 (defn get-bindings
-  "Get the bindings yo"
+  "Compare a list of arguments to a function and a list of arg types"
   [func-t args-t bindings]
   ; Assune funcs-t and args-t are same size, should check for this
   (if (= (count func-t) 1)
@@ -28,11 +28,19 @@
            (rest args-t)
            (same-type? (first func-t) (first args-t) bindings))))
 
+; Look 
+(defn bindings-consistent?
+  "Scan bindings to check they are all consistent"
+  [bindings]
+  true)
+
 (defn func-matches-args?
   "Is a function type-consistent with a set of arguments"
   [func-t args-t]
-  (let [func-args-t (second func-t) bindings [true []]]
-    (get-bindings func-args-t args-t bindings)))
+  (let [func-args-t (second func-t)
+        empty-bindings [true []]
+        bindings (get-bindings func-args-t args-t empty-bindings)]
+        (bindings-consistent? bindings)))
 
 (defn same-type?
   [t-1 t-2 bindings]
@@ -41,6 +49,8 @@
         t-2-class (first t-2)
         failed_binding [false []]]
     (cond
+      ; If one is a typevar but the other isn't
+      ; e.g (tv a) (num), we bind the a to the num
       (and (= t-1-class 'tv) (not= t-2-class 'tv))
         (combine_bindings bindings [true [(second t-1) t-2]])
 
@@ -63,10 +73,12 @@
       (= t-1-class 'lst)
         (let [t-1-elem-type (second t-1)
               t-2-elem-type (second t-2)]
-          (same-type? t-1-elem-type t-2-elem-type bindings)))))
+          (same-type? t-1-elem-type t-2-elem-type bindings))
 
-; (def reduce-t '(fun ((fun a b) (list a))
-;                      (list b)))
+      ; Else tyoes must be fine and no tvs present
+      :else bindings)))
+
+
 (def map-t '(fun ((fun ((tv a)) (tv b))
    (lst (tv a))) 
   (lst (tv a))))
@@ -75,10 +87,13 @@
 
 (def list-int-t '(lst (num)))
 
+(def num-t '(num))
 
 (defn -main
   []
-  (func-matches-args? map-t (list inc-t list-int-t)))
+  ; (func-matches-args? map-t (list inc-t list-int-t)))
+  (func-matches-args? inc-t (list num-t)))
+
 
 (require 'avalance.types)
 (use 'clojure.tools.trace)
