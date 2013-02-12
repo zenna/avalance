@@ -1,14 +1,81 @@
 (ns avalance.types)
 
-; 1. Implement tv
-; 2. Make robust, test
 ; 3. do consistency mathign in func-matchaes-args
 ; 4. Write transformation 
+
+if
+1-9
+"string"
+and
+
+; list functions
+first
+second
+last
+concat
+conj
+list
+
+
+; bool
+=
+not=
+and
+
+; higher order
+map
+reduce
+
+sym type eval deref
+fn -> Symbol -> error -> clojure.core.fn
+let -> Symbol-> error -> clojure.core.$let
+[x y z] -> clojure.lang.persistentlist -> error -> error
+make-step, if -> symbol -> error -> error
+:typesig -> keyword
+fn* -> symbol -> error -> error
+p1__1215# -> symbol -> error -> error
+
+
+(def map-t '(Fun ((Fun ((Tv a)) (Tv b))
+   (List (Tv a))) 
+  (List (Tv a))))
+
+(def inc-t '(Fun ((Num)) (Num)))
+
+(def list-int-t '(List (Num)))
+
+(def num-t '(Num))
+
+(def map-t '(Fun ((Fun ((Tv a)) (Tv b))
+   (List (Tv a))) 
+  (List (Tv a))))
+
+(def bool-t '(Bool))
+
+(def types {'map map-t 'inc inc-t
+            java.lang.Boolean bool-t})
+
+; check if its in a 
+; otherwise check if its a standard type, e.g. a string
+; otherwise fail
+(defn get-type
+  [symb]
+  (let [cust-type (find types symb)
+        symb-type (type symb)]
+    (cond
+      (not= cust-type nil)
+        cust-type
+      (= symb-type clojure.lang.Symbol)
+        (ok)
+      (= symb-type clojure.lang.PersistentVector)
+        (ok)
+      :else
+        (throw (Throwable. "Symbol type not found")))))
 
 ; every type is a list where the first value is one of
 ; fun, list, tuple, type-var, prim
 ; the remaining values depend on the first value:
-; fun: first value is another list where each elemenet is the argument
+; fu(throw (Throwable. "Some text"))n: first value is another list where each elemenet is the argument
 ;      second value is a type of return argument 
 (defn combine_bindings
   [binding-1 binding-2]
@@ -78,16 +145,6 @@
       ; Else tyoes must be fine and no tvs present
       :else bindings)))
 
-
-(def map-t '(fun ((fun ((tv a)) (tv b))
-   (lst (tv a))) 
-  (lst (tv a))))
-
-(def inc-t '(fun ((num)) (num)))
-
-(def list-int-t '(lst (num)))
-
-(def num-t '(num))
 
 (defn -main
   []
