@@ -3,37 +3,37 @@
 ; 3. do consistency mathign in func-matchaes-args
 ; 4. Write transformation 
 
-if
-1-9
-"string"
-and
+; if
+; 1-9
+; "string"
+; and
 
-; list functions
-first
-second
-last
-concat
-conj
-list
+; ; list functions
+; first
+; second
+; last
+; concat
+; conj
+; list
 
 
-; bool
-=
-not=
-and
+; ; bool
+; =
+; not=
+; and
 
-; higher order
-map
-reduce
+; ; higher order
+; map
+; reduce
 
-sym type eval deref
-fn -> Symbol -> error -> clojure.core.fn
-let -> Symbol-> error -> clojure.core.$let
-[x y z] -> clojure.lang.persistentlist -> error -> error
-make-step, if -> symbol -> error -> error
-:typesig -> keyword
-fn* -> symbol -> error -> error
-p1__1215# -> symbol -> error -> error
+; sym type eval deref
+; fn -> Symbol -> error -> clojure.core.fn
+; let -> Symbol-> error -> clojure.core.$let
+; [x y z] -> clojure.lang.persistentlist -> error -> error
+; make-step, if -> symbol -> error -> error
+; :typesig -> keyword
+; fn* -> symbol -> error -> error
+; p1__1215# -> symbol -> error -> error
 
 
 (def map-t '(Fun ((Fun ((Tv a)) (Tv b))
@@ -66,9 +66,9 @@ p1__1215# -> symbol -> error -> error
       (not= cust-type nil)
         cust-type
       (= symb-type clojure.lang.Symbol)
-        (ok)
+        'ok
       (= symb-type clojure.lang.PersistentVector)
-        (ok)
+        'ok
       :else
         (throw (Throwable. "Symbol type not found")))))
 
@@ -154,5 +154,5 @@ p1__1215# -> symbol -> error -> error
 
 (require 'avalance.types)
 (use 'clojure.tools.trace)
-(trace-ns 'avalance.types)
-(-main)
+; (trace-ns 'avalance.types)
+; (-main)
