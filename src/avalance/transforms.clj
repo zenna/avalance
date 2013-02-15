@@ -32,26 +32,31 @@
   "Get an index vector e.g. [2 3 1] for a position in a nested list"
   [coll pos]
   (loop [coll coll pos pos i 0]
-    (if (or (zero? pos) (empty? coll))
-      [i]
-      (if (list? (first coll))
+    (cond
+      (list? (first coll))
         (let [inner-level (get-index-vector (first coll) pos)
               pos (- pos (sum inner-level))]
           (if (<= pos 0)
-            (vec (concat i inner-level))
+            (vec (concat [i] inner-level))
             (recur (first coll) pos (inc i))))
-        (recur (rest coll) (dec pos) (inc i))))))
+      (or (zero? pos) (empty? coll)) [i]
+      :else 
+        (recur (rest coll) (dec pos) (inc i)))))
+
+(defn generate-branch
+  [lib types])
 
 (defn change-random-branch
-  [func lib]
+  [func lib types]
   (let [flat-func (flatten func)
-      rand-elem-pos lib
+      rand-elem-pos (random-choice (count flat-func))
       index-vector (get-index-vector rand-elem-pos)]
-      0))
+      (loop [elem-type (get-type (nth flat-func rand-elem-pos)]
+        (if elem-)
 
 (defn -main
   []
-  (let [tester '(0 1 2 ( 3 4 (5) 6) 7)]
+  (let [tester '(0 ( 1 (2) 3) 4)]
     (get-index-vector tester 3)))
 
 
