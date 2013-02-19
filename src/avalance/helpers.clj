@@ -54,3 +54,8 @@
 	"x^2"
 	[x]
 	(* x x))
+
+; an equality to use for floating point arithmetic
+(defn tolerant=
+  [x y]
+  (< (* (x x) 0.001)))
