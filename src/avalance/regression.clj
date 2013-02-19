@@ -122,7 +122,25 @@
 (defn study-func
   "This applies a coll of tests to a function and classifies results"
   [func tests results]
-  ())
+  (tests))
+
+def perform-experiments(func, tests, results):
+  # apply all the tests to the func
+  op-sequence-results = map(func, tests)
+
+  # to the output sequences, apply the result
+  experiments
+  for sequence in op-sequence-results:
+    results-output = juxt(sequence, results)
+    
+    # filter-results e.g. reduced, dramatically-reduced, isZero
+    filter-results = filter(results-output, =true)
+
+    # experiments = [double:reduced, doubled:dramatically-reduced,...]
+    all-experiments.concat(experiment)
+
+  return experiments
+
 
 (defn eval-attrs
   "Evaluate a coll of attributes on a coll of study"
