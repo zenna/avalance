@@ -2,6 +2,8 @@
 (ns avalance.regression
   (:require [clojure.math.combinatorics :as combo]))
 
+(use 'avalance.equations)
+
 ; ATTRIBUTES AND FRAGMENTS ------------------------------------------
 (defn contains-frag-plus
   [expression bindings]
@@ -69,6 +71,8 @@
                                   (concat attribute-spaces [tests-spaces] [bindings-spaces] [results-spaces]))]
         all-combinations))
 
+
+
 ; a likelihood is a function from
 ; fragments is a map from quoted attribute name to quoted expressions
 ; frag1-name ffrag1-present? fragN-name fragN-present? experiment outcome -> likelihood 
@@ -113,110 +117,106 @@
   ; 4. map proposals cost-func
   ; 5. get best
 
-; Generate num functions which adhere to attribute constraints
-(defn gen-funcs
-  "Generate num functions which adhere to attribute constraints"
-  [attrs number])
+; Given a map and a function, perform map on values and return map with same keys
+(defn map-assoc [f m]
+  (into {} (for [[k v] m] [k (f v)])))
 
 ; A study encapsulates the idea of manipulating variables and classifying the result
+; Assume tests is a sequence of values like this [[1] [2] [3]]
+  ; tests = {'double:data 'wicked:data test}
+; results = {'doubled?:lambda-pred}
 (defn study-func
   "This applies a coll of tests to a function and classifies results"
   [func tests results]
-  (tests))
+  ; raw-results is func applied to each test, of form {'test1:[1 2 3] ...}
+  (let [raw-results (map-assoc (fn [x] (map #(apply func %1) x)) tests)]
+        ; return map from testname to all valid results e.g. {'test1:[doubled?,zero?]}
+        (map-assoc (fn [x] 
+          (loop [loop-results results woop []]
+          (if (empty? loop-results) woop
+            (let [result (first loop-results)
+                  result-applies (apply (val result) x)
+                  ; If the result is true, then save the resultname
+                  result-to-add ({true [(key result)] false []} result-applies)]
+              (recur (rest loop-results) (concat woop result-to-add)))))) raw-results)))
 
-def perform-experiments(func, tests, results):
-  # apply all the tests to the func
-  op-sequence-results = map(func, tests)
-
-  # to the output sequences, apply the result
-  experiments
-  for sequence in op-sequence-results:
-    results-output = juxt(sequence, results)
-    
-    # filter-results e.g. reduced, dramatically-reduced, isZero
-    filter-results = filter(results-output, =true)
-
-    # experiments = [double:reduced, doubled:dramatically-reduced,...]
-    all-experiments.concat(experiment)
-
-  return experiments
-
-
+; Evaluates a set of attributes with respect to set of studies
+; Works by generating G functions for which these attributes hold
+; Performing same tests on G functions where it is known attributes hold 
+; Checking what fraction of results are consistent
+; TODO-TO-ALPHA: HACK-GENERATOR! for predefined set of functions
 (defn eval-attrs
-  "Evaluate a coll of attributes on a coll of study"
-  [attrs studies]
-  (let [num-funcs-to-gen 100
-        gen-funcs (gen-with-attrs attrs)
-        old-experiments (map #(study-func %1 tests results) gen-funcs)]))
+  "Evaluate a coll of attributes with respect to a set of studies"
+  [attrs studies all-tests all-results]
+  (let [num-funcs-to-gen 3
+        ; vector of generated functions with attribute constraints
+        gend-funcs (gen-funcs attrs num-funcs-to-gen)
+        filtered-tests (select-keys all-tests (keys studies))
+        ; List (one for each func) of studies on these
+        ; e.g [{'test1 ['doubled,zero] 'test2:[]} {...} ...]
+        gend-studies (map #(study-func %1 filtered-tests all-results) gend-funcs)
+        ok (println "STUIES" gend-studies)
+        counts (loop [loop-gend-studies gend-studies
+                      study-counts (map-assoc (fn [x] 1) studies)]
+          (if (empty? loop-gend-studies)
+              study-counts
+              ; iterates through all G funcs and foreach check if test led to same result or not
+              (recur
+                (rest loop-gend-studies)  
+                ; Check by merge-with on three maps, since they all have the same keys
+                ; fn checks if result of experiment same, if so increment study counts
+                ; study-counts)))]
+                (merge-with
+                  (fn [match? study-count]
+                    (if match?
+                        (inc study-count)
+                        study-count))
+                  (merge-with
+                    (fn [studies gend-studies]
+                      (if (nil? (some #{studies} gend-studies))
+                          false
+                          true))
+                    studies (first loop-gend-studies))
+                  study-counts))))]
+    ; To get joint probabiliorty, normalise (map) then  * (reduce) (assuming independence)
+    (reduce * (map #(/ %1 num-funcs-to-gen) (vals counts)))))
 
-So the algorithm is something like 
+(def tests
+  {'increase [[1] [10]]
+   'decrease [[10] [1]]
+   'zero [[10]]})
 
+(def results
+  {'increased? (fn [& args] (> (last args) (first args)))
+   'decreased? (fn [& args] (< (last args) (first args)))
+   'non-zero? (fn [& args] (not (zero? (last args))))
+   'zero? (fn [& args] (zero? (last args)))})
 
-#we need to generate functions which adhere to these constraints
-def generate-with-constraints(attrs-set,100):
-  How to use this?
-
-# cooerce variables
-def perform-experiments(func, tests, results):
-  # apply all the tests to the func
-  op-sequence-results = map(func, tests)
-
-  # to the output sequences, apply the result
-  experiments
-  for sequence in op-sequence-results:
-    results-output = juxt(sequence, results)
-    
-    # filter-results e.g. reduced, dramatically-reduced, isZero
-    filter-results = filter(results-output, =true)
-
-    # experiments = [double:reduced, doubled:dramatically-reduced,...]
-    all-experiments.concat(experiment)
-
-  return experiments
-
-; generates a set of attributes which are likely to be part of the expression
-def evaluate-attr-set(attrs-set, experiments):
-  num-funcs-to-gen = 100
-
-  # Generate 100 functions which adhere to the attribute constraints
-  # TODO! HARD
-  gs = generate-with-constraints(attrs-set,100)
-
-  old-experiments = map(perform-experiments, gs)
-  
-  # Now for each experiment in experiment, assume independence:
-  for experiments in experiment:
-    test = experiment.test
-    result = experiment.result
-
-    old-experiments-of-same-test = filter(old-experiments, old-experiment.test == test)
-    num-same-test = count(old-experiments-of-same-test)
-
-    same-result = filter(old-experiments-of-same-test, old-experiment.result = result)
-
-    return fraciton
-
-
-def optimise-attribute-set(experiments):
-  # Somehow select a set of attributes
-  attribute-set = select-attribute-set()
-  evaluate-attr-set(attr-set)
-  
-
-; TARGET-FUNCTION ------------------------------------------
-(defn coloumbs-law
-  [q1 q2 r]
-  (/ (* 1.2342 (* q1 q2))
-          (* r r)))
-
-(defn cost-func
-  [proposal])
+(defn test-func
+  [x]
+  (/ 1 (+ x 3)))
+; 
+(def test-studies {'increase ['decreased? 'non-zero?]
+  'decrease ['increased? 'non-zero?]})
 
 (defn -main
   []
-  (let [densities (gen-uniform-likelihoods attributes tests tests)
-        plus-density (densities 'plus)]
-    (plus-density {'linear 0 'denominator 0 'test 'much-less-than 'result 'much-less-than})))
+  (eval-attrs x-in-denom? test-studies tests results))
+
+; ; TARGET-FUNCTION ------------------------------------------
+; (defn coloumbs-law
+;   [q1 q2 r]
+;   (/ (* 1.2342 (* q1 q2))
+;           (* r r)))
+
+; (defn cost-func
+;   [proposal])
+
+; (defn -main
+;   []
+;   (let [densities (gen-uniform-likelihoods attributes tests tests)
+;         plus-density (densities 'plus)]
+;     (plus-density {'linear 0 'denominator 0 'test 'much-less-than 'result 'much-less-than})))
 
 
 ; (require 'avalance.regression)
