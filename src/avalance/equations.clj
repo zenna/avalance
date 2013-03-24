@@ -39,6 +39,15 @@
           (random-code (dec depth))
           (random-code (dec depth)))))
 
+(defn random-code-custom-terminals
+  [depth gen-terminal]
+  (if (or (zero? depth)
+          (zero? (rand-int 2)))
+    (gen-terminal)
+    (list (random-function)
+          (random-code-custom-terminals (dec depth) gen-terminal)
+          (random-code-custom-terminals (dec depth) gen-terminal))))
+
 (defn pd
   "Protected division; returns 0 if the denominator is zero."
   [num denom]
