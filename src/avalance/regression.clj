@@ -203,6 +203,22 @@
   []
   (eval-attrs x-in-denom? test-studies tests results))
 
+
+(defn eval-att-test-jump
+  [attr test result]
+  ; Generate G functions where attribute is true: HOW!
+  ; For each of these G functions
+    ; apply g to test - IF NUMBERS OK!
+    ; apply result to g(test) - 
+
+; What if I can't get a good range on the attribute
+; What does it mean to set a test to 0, or 0.5
+; )
+
+; I can't exchaustively enumerate attr
+; What does test mean
+; result
+
 ; ; TARGET-FUNCTION ------------------------------------------
 ; (defn coloumbs-law
 ;   [q1 q2 r]

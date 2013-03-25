@@ -59,6 +59,12 @@
   [expr]
   (eval (list 'fn '[x] expr)))
 
+
+(defn make-lambda-args
+  "Make a function from an expression with some args"
+  [expr args]
+  (eval (list 'fn args expr)))
+
 ; Generate num functions which adhere to attribute constraints
 (defn gen-funcs
   "Generate num functions which adhere to attribute constraints"
