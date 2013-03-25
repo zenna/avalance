@@ -90,15 +90,15 @@
 (def compound-pcfg
   {:start 'F
    :rules
-    {'F [{:prod '(UF V) :weignt 1.6}
+    {'F [{:prod '(UF V) :weight 1.6}
           {:prod '(BF V V) :weight 3.4}]
-      'UF [{:prod '(sin V) :weight 1.2}
-           {:prod '(cos V) :weight 1.2}
-           {:prod '(inc V) :weight 1.2}]
-      'BF [{:prod '(* V V) :weight 1.0}
-           {:prod '(/ V V) :weight 1.0}]
-      'V  [{:prod '(F)     :weight 1.0}
-           {:prod 'A       :weight 1.0}]}})
+      'UF [{:prod 'sin :weight 1.2}
+           {:prod 'cos :weight 1.2}
+           {:prod 'inc :weight 1.2}]
+      'BF [{:prod '*   :weight 1.0}
+           {:prod '/   :weight 1.0}]
+      'V  [{:prod 'A   :weight 1.0}
+           {:prod 'F   :weight 1.0}]}})
 
 (defn add-vars-to-grammar
   "Add variables to V production rule of grammar"
@@ -107,5 +107,28 @@
 (defn gen-expr-pcfg
   "Generate an expression from a pcfg"
   [pcfg]
-  (let [lhs-symb (:start pcfg) rules (rules :pcfg)]
-    ))
+  (let [inner-loop (fn il [lhs-symb] 
+      (cond
+        ; Non-terminal? Probabalistically choose transition
+        (contains? (:rules pcfg) lhs-symb)
+          (let [productions ((:rules pcfg) lhs-symb)
+                production (:prod (sample-production productions))]
+            (if (list? production)
+              (map il production)
+              (il production)))
+
+        ; Otherwise it's a terminal
+        :else
+          lhs-symb))]
+    (inner-loop (:start pcfg))))
+
+(defn sample-production
+  "Probabalistically sample a production"
+  [productions]
+  (let [sorted-prods (sort-by :weight > productions)
+        total-weight (apply + (map #(:weight %1) productions))
+        rand-point (rand total-weight)]
+      (loop [sorted-prods-loop sorted-prods accumulated-weight 0.0]
+        (if (>= (+ accumulated-weight (:weight (first sorted-prods-loop))) rand-point)
+          (first sorted-prods-loop)
+          (recur (rest sorted-prods-loop) (+ accumulated-weight (:weight (first sorted-prods-loop))))))))
