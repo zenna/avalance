@@ -86,3 +86,26 @@
       (= pos-div -1) false
       (= 'x (nth (flatten expr) (+ 2 pos-div))) true
       :else false)))
+
+(def compound-pcfg
+  {:start 'F
+   :rules
+    {'F [{:prod '(UF V) :weignt 1.6}
+          {:prod '(BF V V) :weight 3.4}]
+      'UF [{:prod '(sin V) :weight 1.2}
+           {:prod '(cos V) :weight 1.2}
+           {:prod '(inc V) :weight 1.2}]
+      'BF [{:prod '(* V V) :weight 1.0}
+           {:prod '(/ V V) :weight 1.0}]
+      'V  [{:prod '(F)     :weight 1.0}
+           {:prod 'A       :weight 1.0}]}})
+
+(defn add-vars-to-grammar
+  "Add variables to V production rule of grammar"
+  [variables pcfg])
+
+(defn gen-expr-pcfg
+  "Generate an expression from a pcfg"
+  [pcfg]
+  (let [lhs-symb (:start pcfg) rules (rules :pcfg)]
+    ))

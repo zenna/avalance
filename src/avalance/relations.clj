@@ -5,37 +5,15 @@
 (use 'clojure.math.numeric-tower)
 (use 'avalance.equations)
 
-; TODO
-; 1. Complete generate data-compounds
-; data compounds are simple expressions possibly involving the variables
-; But I need to be able to compute them.  How they are represented will depend on how they are used later
+TODO
 
-; * Generate in correct representation
-; *2 Generator needs to handle nary functions
-; *2 Be able to represent stochastic grammar explicitly
+FIX EXPRESSION Generator
+* Avoid making nulls
+* Making a probabilsitic grammar where I can change (i.e search over the weights)
+* Create nary functions - maybe simple type system
 
-; 2. 
-; * Figure out representation of models DONE
-; * Figure out output of find-bias DONE
-;   So it is going to be some triple of compound compound model best-model-score.
-;   - now thinking into the future, there may be more than two compounds
-;   - and we want the representation to be such that we can sort by score.
-;   - How the representation will be used:
-;   [{:compounds [list of compounds] :model AMODEL :score 123 }]
-;   - The ony problem is that there is a redundancy in storing compounds, who cares!! It's fine.
-
-
-
-; * Figure out output of eval-models - DONE
-
-; *2 Find biases looks at all pairs because our models are unary, make this look at all combinations
-; and also make models nary 
-
-; 3. Figure out the search.  Well whatever it is, I can assume it will sample from the models somewhat dependent on the score.
-
-
-; So we can say DATA = assoc {a:[1 2 3 4] b:[1 2 3 4 5]}, and a compound is an expression containing these variables.
-; But when we make it evaluatable, if becoes f(data), and we bind any terminals to their value in data.
+* How to evaluate models - Bayesian Linear regressin 
+* 
 
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform
@@ -89,11 +67,11 @@
       ; We want to check all different pairs of compounds against our models
       (loop [x-compounds data-compounds y-compounds data-compounds weights []]
         (let [x (first x-compounds) y (first (rest y-compounds))]
-          (println x "--- VS ---" y)
+          ; (println (count x-compounds) "-" (count y-compounds) "->" (:as-expr x) "--- VS ---" (:as-expr y))
           (cond
-            (and (empty x-compounds) (empty y-compounds))
+            (and (empty? x-compounds) (empty? y-compounds))
               weights
-            (empty y-compounds)
+            (empty? y-compounds)
               (recur (rest x-compounds) (rest x-compounds) (concat weights (eval-models [x y] data models)))
             :else
               (recur x-compounds (rest y-compounds) (concat weights (eval-models [x y] data models))))))))
