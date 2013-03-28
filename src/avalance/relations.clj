@@ -5,15 +5,15 @@
 (use 'clojure.math.numeric-tower)
 (use 'avalance.equations)
 
-TODO
+; TODO
 
-FIX EXPRESSION Generator
-* Avoid making nulls
-* Making a probabilsitic grammar where I can change (i.e search over the weights)
-* Create nary functions - maybe simple type system
+; FIX EXPRESSION Generator
+; * Avoid making nulls
+; * Making a probabilsitic grammar where I can change (i.e search over the weights)
+; * Create nary functions - maybe simple type system
 
-* How to evaluate models - Bayesian Linear regressin 
-* 
+; * How to evaluate models - Bayesian Linear regressin 
+; * 
 
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform
@@ -32,14 +32,16 @@ FIX EXPRESSION Generator
 (defn gen-data-compounds
   "Generate functions of data variables"
   [data num-to-gen]
-  ; Create terminals of form (data a) (data b)
-  (let [var-terminals (map #(list 'data (list 'quote %1)) (keys data))
-      get-terminal #(rand-nth (concat var-terminals [(rand 10)]))
+
+  ; Create terminals
+  ; For convenience, functions are unary, expecting "data" arg
+  (let [data-prods (map (fn [variable] {:prod (list 'data (list 'quote variable)) :weight 1.0}) (keys data))
+      new-pcfg (add-data-to-pcfg data-prods compound-pcfg)
       expr-depth 2]
     (map
       ; Convert expr -> {:as-expr expr :as-lambda computeable-expr}
       (fn [expr] {:as-expr expr :as-lambda (make-lambda-args expr '[data])})
-      (repeatedly num-to-gen #(random-code-custom-terminals expr-depth get-terminal)))))
+      (repeatedly num-to-gen #(gen-expr-pcfg new-pcfg)))))
 
 ; For each pair of compounds, I need to evaluate the likeliness of the model
 ; Returns [{:compounds [list of compounds] :model AMODEL :score 123 }, ...]

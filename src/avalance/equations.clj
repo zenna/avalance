@@ -87,22 +87,34 @@
       (= 'x (nth (flatten expr) (+ 2 pos-div))) true
       :else false)))
 
+; Probabilstic context free grammar
 (def compound-pcfg
   {:start 'F
    :rules
     {'F [{:prod '(UF V) :weight 1.6}
           {:prod '(BF V V) :weight 3.4}]
-      'UF [{:prod 'sin :weight 1.2}
-           {:prod 'cos :weight 1.2}
+      'UF [{:prod 'Math/sin :weight 1.2}
+           {:prod 'Math/cos :weight 1.2}
            {:prod 'inc :weight 1.2}]
       'BF [{:prod '*   :weight 1.0}
            {:prod '/   :weight 1.0}]
-      'V  [{:prod 'A   :weight 1.0}
-           {:prod 'F   :weight 1.0}]}})
+      'V  [{:prod 'F   :weight 1.0}]}})
 
-(defn add-vars-to-grammar
+(defn add-data-to-pcfg
   "Add variables to V production rule of grammar"
-  [variables pcfg])
+  [variable-prods pcfg]
+  (update-in pcfg [:rules 'V] (fn [productions] (concat productions variable-prods))))
+
+(defn sample-production
+  "Probabalistically sample a production"
+  [productions]
+  (let [sorted-prods (sort-by :weight > productions)
+        total-weight (apply + (map #(:weight %1) productions))
+        rand-point (rand total-weight)]
+      (loop [sorted-prods-loop sorted-prods accumulated-weight 0.0]
+        (if (>= (+ accumulated-weight (:weight (first sorted-prods-loop))) rand-point)
+          (first sorted-prods-loop)
+          (recur (rest sorted-prods-loop) (+ accumulated-weight (:weight (first sorted-prods-loop))))))))
 
 (defn gen-expr-pcfg
   "Generate an expression from a pcfg"
@@ -121,14 +133,3 @@
         :else
           lhs-symb))]
     (inner-loop (:start pcfg))))
-
-(defn sample-production
-  "Probabalistically sample a production"
-  [productions]
-  (let [sorted-prods (sort-by :weight > productions)
-        total-weight (apply + (map #(:weight %1) productions))
-        rand-point (rand total-weight)]
-      (loop [sorted-prods-loop sorted-prods accumulated-weight 0.0]
-        (if (>= (+ accumulated-weight (:weight (first sorted-prods-loop))) rand-point)
-          (first sorted-prods-loop)
-          (recur (rest sorted-prods-loop) (+ accumulated-weight (:weight (first sorted-prods-loop))))))))
