@@ -8,12 +8,8 @@
 TODO
 
 FIX EXPRESSION Generator
-* Avoid making nulls
-* Making a probabilsitic grammar where I can change (i.e search over the weights)
-* Create nary functions - maybe simple type system
 
-* How to evaluate models - Bayesian Linear regressin 
-* 
+* How to evaluate models - Bayesian Linear regressin  
 
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform

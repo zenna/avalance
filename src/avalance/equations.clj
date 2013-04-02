@@ -122,6 +122,7 @@
           lhs-symb))]
     (inner-loop (:start pcfg))))
 
+; Algorithm sorts weights onto a line and samples from the line
 (defn sample-production
   "Probabalistically sample a production"
   [productions]
