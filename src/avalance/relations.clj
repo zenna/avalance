@@ -49,7 +49,7 @@
   ; For each model evaluate the best fit I can get of the data
   ; 1. Generate compound-data
   ; 2. (nelder-mead example-cost [5.0 5.0])
-  (println compounds)
+  ; (println compounds)
   (let [reformated-data (for [index (range (count (data 'a)))]
                               {'a (nth (data 'a) index) 'b (nth (data 'b) index)})
         new-data {'a (map (:as-lambda (first compounds)) reformated-data) 
@@ -73,7 +73,7 @@
         {:compounds compounds :model model :score (:cost best-param-fit-model)}))
       ; TODO: do least squares regression on model
     models)]
-    (println mm "\n")
+    ; (println mm "\n")
     mm))
 
 ; Data is a matrix, vector of vectors: one for each variable over some interval.
@@ -111,6 +111,14 @@
   :params ['p1 'p2]
   :name 'exptmodel})
 
+(def exp-model2
+  {:as-lambda
+  (fn [param-map indep-vars]
+    (+ (param-map 'p1) (Math/pow (indep-vars 'x) (param-map 'p2))))
+
+  :params ['p1 'p2]
+  :name 'exptmodel2}) 
+
 (def linear-model
   {:as-lambda
   (fn [param-map indep-vars]
@@ -122,7 +130,8 @@
 
 (def models
   [exp-model
-   linear-model])
+   exp-model2
+   ])
 
 ; Example function from Herb Simon
 (defn kepler
@@ -137,11 +146,11 @@
 (defn -main
   []
   ;1. Generate data 
-  (let [data (gen-data-uniform line 1 100 10)
+  (let [data (gen-data-uniform kepler 1 100 10)
     ;2. Generate simple functions of data
-    data-compounds (gen-data-compounds data 3)
+    data-compounds (gen-data-compounds data 30)
     ;3. For each pair of compounds, produce plot, evaluate each plot on each fragment
-    model-weights (find-bias data data-compounds models)]
+    model-weights (subvec (vec (sort-by :score (find-bias data data-compounds models))) 0 5)]
     model-weights))
 
 ; (require 'avalance.relations)
