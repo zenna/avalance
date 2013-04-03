@@ -3,12 +3,8 @@
 ;todo
 ; termination tests - start with just number of iterations
 ; convert model into cost function
+; Figure out ms test
 
-(defn nelder-mead-random-restart
-  [parameters cost-func num-iters]
-  "Use nelder-mead with random init"
-  (repeatedly)
-  (nelder-mead parameters cost-func (repeatedly (count parameters) rand )))
 
 ; point [p1 p3 ... pn]
 ; e.g. point = [10 20]
@@ -23,7 +19,7 @@
         (inc dim)))))
 
 (defn vec-f
-  "Like merge-with but for vectors"
+    "Like merge-with but for vectors"
   [f v1 v2]
   (loop [index 0 merged-vec []]
     (if (= index (count v1))
@@ -31,45 +27,50 @@
       (recur (inc index) (conj merged-vec (f (nth v1 index) (nth v2 index)))))))
 
 ; TODO TEST
-(defn vec-scalar-fd
+(defn vec-scalar-f
   "scalar f (e.g. multiply division etc) of vector"
   [f v scalar]
   (map #(f %1 scalar) v))
+
+(defn remove-nth
+  "Returns vector with nth value removed"
+  [v i]
+  (vec (concat (subvec v 0 i)
+               (subvec v (inc i)))))
 
 ; cost-func 
 (defn nelder-mead
   [cost-func init-point]
   "Perform parameter optimsation with nelder-mead"
-  (let [step-size 10
+  (let [step-size 1
         ;nelder-mead parameters
         alpha 1.0
         beta 0.5
         gamma 2.0
         delta 0.5
-        init-simplex init-point step-size]
-    (loop [simplex-costs (map (fn [vertex] {:vertex vertex :cost (cost-func vertex)}) init-simplex)
-           num-iter 0]
+        simplex (init-simplex init-point step-size)]
+    (loop [simplex-costs (mapv (fn [vertex] {:vertex vertex :cost (cost-func vertex)}) simplex)
+           iter-num 0]
       ; Ordering: find worst, second worst and best point
       ; simplex-costs [{:vertex [.2 .3 .4] :cost .35} {...} ...]
       ; Check termination conditions first
       (if
-        (or (<= num-iter 5)
+        (or (>= iter-num 10)
             false)
         simplex-costs
-        (let [simplex-costs (sort-by :cost simplex-costs)
-              best-vertex (nth simplex-costs 0)
-              sec-best-vertex (nth simplex-costs 1)
-              worst-point (last simplex-costs)
+        (let [simplex-costs (vec (sort-by :cost simplex-costs))
+              best-vertex (:vertex (nth simplex-costs 0))
+              sec-best-vertex (:vertex (nth simplex-costs 1))
+              worst-vertex (:vertex (last simplex-costs))
               worst-index (dec (count simplex-costs))
-
               ; find centroid of the best side — opposite worst vertex 
               ; c = 1/n * vector sum of vertices
               centroid
                 ; either i can destructure vertex-costs, to extract vectors
                 ; or i can use original simplex
                 (vec-scalar-f *
-                  (reduce #(vec-f + (:vertex %1) (:vertex %2)) (dissoc simplex-costs worst-index))
-                  (/ 1 (dec (count simplex))))
+                  (reduce #(vec-f + %1 %2) (map #(:vertex %1) (remove-nth simplex-costs worst-index)))
+                  (/ 1 (dec (count simplex-costs))))
               reflection-vertex
                 (vec-f + centroid 
                   (vec-scalar-f * (vec-f - centroid worst-vertex) alpha))
@@ -86,17 +87,19 @@
           ; Reflect: test if cost of reflection point is between best and second worst
           (cond
             (and (< (cost-func worst-vertex) (cost-func reflection-vertex))
-                  (<= (cost-func reflection-vertex) (cost-func best-vertex))))
+                  (<= (cost-func reflection-vertex) (cost-func best-vertex)))
             ; if so swap worst point for reflection point, terminate and recurse 
             (recur (assoc simplex-costs worst-index
-              {:vertex reflection-vertex :cost (cost-func reflection-vertex)}))
+              {:vertex reflection-vertex :cost (cost-func reflection-vertex)})
+              (inc iter-num))
 
             ; Expand: If reflection point is better than best, compute expansion point
             (and (< (cost-func best-vertex) (cost-func reflection-vertex))
                  (< (cost-func reflection-vertex) (cost-func expansion-vertex)))
             
             (recur (assoc simplex-costs worst-index
-              {:vertex expansion-vertex :cost (cost-func expansion-vertex)}))
+              {:vertex expansion-vertex :cost (cost-func expansion-vertex)})
+              (inc iter-num))
 
             ; Contract Outside: if fs <= fr < fh
             (and (<= (cost-func sec-best-vertex) (cost-func reflection-vertex))
@@ -104,14 +107,16 @@
                  (<= (cost-func out-contraction-vertex) (cost-func reflection-vertex)))
 
             (recur (assoc simplex-costs worst-index
-              {:vertex out-contraction-vertex :cost (cost-func out-contraction-vertex)}))
+              {:vertex out-contraction-vertex :cost (cost-func out-contraction-vertex)})
+              (inc iter-num))
 
             ; Contract Outside: if fs <= fr < fh
             (and (>= (cost-func reflection-vertex) (cost-func worst-vertex)
                  (< (cost-func centroid) (cost-func in-contraction-vertex))))
 
             (recur (assoc simplex-costs worst-index
-              {:vertex in-contraction-vertex :cost (cost-func in-contraction-vertex)}))
+              {:vertex in-contraction-vertex :cost (cost-func in-contraction-vertex)})
+              (inc iter-num))
 
             ; Otherwise shrink!
             :else 
@@ -119,18 +124,55 @@
                 (map (fn [vertex] (let [shrunk-vertex (vec-f + worst-vertex 
                          (vec-scalar-f * (vec-f - (:vertex vertex) worst-vertex) beta))]
                     {:vertex shrunk-vertex :cost (cost-func shrunk-vertex)}))
-                  (dissoc simplex-costs worst-index))
-                (nth simplex-costs worst-index))))))))
+                  (remove-nth simplex-costs worst-index))
+                (nth simplex-costs worst-index))
+                (inc iter-num)))))))) 
 
-  (defn model-to-cost-func)
+  ; (defn model-to-cost-func)
 
-(require 'avalance.neldermead)
-(use 'clojure.tools.trace)
-(trace-ns 'avalance.neldermead)
+(defn nelder-mead-random-restart
+  [parameters cost-func num-iters]
+  "Use nelder-mead with random init"
+  (repeatedly)
+  (nelder-mead parameters cost-func (repeatedly (count parameters) rand )))
+
 
 (defn dummy-cost-func
-  "Dummy cost fucntion for testing"
+  "Dummy cost function for testing"
   [parameters]
   (reduce + parameters))
 
-(nelder-mead dummy-cost-func [1.0 2.0 3.0])
+
+(defn find-and-replace
+  "Replaces values in a list with others"
+  [expr param-mapping]
+  ())
+
+(defn make-lambda-args
+  "Make a function from an expression with some args"
+  [expr args]
+  (eval (list 'fn args expr)))
+
+; a model is an expression :expr (+ (* 'm x) 'c) :params ['m 'c'] :independent-vars
+; data {'a [1 2 3] 'b [1 2 3]}
+(defn mean-sqr-errord
+  "Take a model and a dataset and produce a function which when given a set of parameters of the model
+  will compute the mean squared error of the model against data"
+  [model data]
+  (fn [param-values]
+    (let [model-as-func (make-lambda-args
+                          (find-and-replace model (zipmap (:params model) param-values))
+                          (:independent-vars model))]
+      (loop [error 0.0 index 0]
+        (if (>= index (count (data 'a)))
+          (/ error 2)
+          (recur (+ error
+                    (expt (- (nth (data 'a) index) (model-as-func (nth (data 'b) index))) 2))
+            (inc index)))))))
+
+(defn -main []
+  (nelder-mead dummy-cost-func [1.0 2.0 3.0]))
+; (require 'avalance.neldermead)
+; (use 'clojure.tools.trace)
+; (trace-ns 'avalance.neldermead)
+(-main)
