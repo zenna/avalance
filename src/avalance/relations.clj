@@ -4,6 +4,8 @@
 
 (use 'clojure.math.numeric-tower)
 (use 'avalance.equations)
+(use 'avalance.neldermead)
+
 
 ; TODO
 
@@ -41,14 +43,38 @@
 
 ; For each pair of compounds, I need to evaluate the likeliness of the model
 ; Returns [{:compounds [list of compounds] :model AMODEL :score 123 }, ...]
+(defn create-compound-data
+  "Converts data into compound data"
+  [compounds data]
+  ; For each model evaluate the best fit I can get of the data
+  ; 1. Generate compound-data
+  ; 2. (nelder-mead example-cost [5.0 5.0])
+  (println compounds)
+  (let [reformated-data (for [index (range (count (data 'a)))]
+                              {'a (nth (data 'a) index) 'b (nth (data 'b) index)})
+        new-data {'a (map (:as-lambda (first compounds)) reformated-data) 
+                  'b (map (:as-lambda (second compounds)) reformated-data)}]
+    ; (println "NEW DATA" new-data)
+    new-data))
+  
+
 (defn eval-models
   "Returns error for best fit of all models against data"
   [compounds data models]
   ; For each model evaluate the best fit I can get of the data
-  (map
-    (fn [model] {:compounds compounds :model model :score 123})
+  ; 1. Generate compound-data
+  ; 2. (nelder-mead example-cost [5.0 5.0])
+  (let [mm (map
+    (fn [model]
+      ; Construct new data from compounds
+      ; Assume there will always be two compounds
+      (let [cost-func (mean-sqr-error model data)
+            best-param-fit-model (nelder-mead cost-func [1.0 1.0])]
+        {:compounds compounds :model model :score (:cost best-param-fit-model)}))
       ; TODO: do least squares regression on model
-    models))
+    models)]
+    (println mm "\n")
+    mm))
 
 ; Data is a matrix, vector of vectors: one for each variable over some interval.
 ; Returns [{:compounds [list of compounds] :model AMODEL :score 123 }, ...]
@@ -67,20 +93,36 @@
         (let [x (first x-compounds) y (first (rest y-compounds))]
           ; (println (count x-compounds) "-" (count y-compounds) "->" (:as-expr x) "--- VS ---" (:as-expr y))
           (cond
-            (and (empty? x-compounds) (empty? y-compounds))
-              weights
-            (empty? y-compounds)
-              (recur (rest x-compounds) (rest x-compounds) (concat weights (eval-models [x y] data models)))
+            (> (count y-compounds) 2)
+              (recur x-compounds (rest y-compounds) (concat weights (eval-models [x y] (create-compound-data [x y] data) models)))
+            (> (count x-compounds) 2)
+              (recur (rest x-compounds) (rest x-compounds) (concat weights (eval-models [x y] (create-compound-data [x y] data) models)))
             :else
-              (recur x-compounds (rest y-compounds) (concat weights (eval-models [x y] data models))))))))
+              (concat weights (eval-models [x y] (create-compound-data [x y] data) models)))))))
 
 ; Models are expressions, which have parameters and variables
 ; Parameters are values to be optmised in eval-models
 ; Whereas variables come from compounds
+(def exp-model
+  {:as-lambda
+  (fn [param-map indep-vars]
+    (+ (param-map 'p1) (Math/pow (param-map 'p2) (indep-vars 'x))))
+
+  :params ['p1 'p2]
+  :name 'exptmodel})
+
+(def linear-model
+  {:as-lambda
+  (fn [param-map indep-vars]
+    ; (println "MODEL!!" param-map indep-vars)
+    (+ (param-map 'p1) (* (param-map 'p2) (indep-vars 'x))))
+
+  :params ['p1 'p2]
+  :name 'linear})
+
 (def models
-  [ '(+ (* p1 x) p2)
-    '(expt p1 x)
-    '(sin x)])
+  [exp-model
+   linear-model])
 
 ; Example function from Herb Simon
 (defn kepler
@@ -92,18 +134,18 @@
   (+ 1.5 (* 10 x)))
 
 
-; (defn -main
-;   []
-;   ;1. Generate data 
-;   (let [data (gen-data-uniform kepler 1 100 100)
-;     ;2. Generate simple functions of data
-;     data-compounds (gen-data-compounds data 10)
-;     ;3. For each pair of compounds, produce plot, evaluate each plot on each fragment
-;     model-weights (find-bias data data-compounds models)]
-;     model-weights))
+(defn -main
+  []
+  ;1. Generate data 
+  (let [data (gen-data-uniform line 1 100 10)
+    ;2. Generate simple functions of data
+    data-compounds (gen-data-compounds data 3)
+    ;3. For each pair of compounds, produce plot, evaluate each plot on each fragment
+    model-weights (find-bias data data-compounds models)]
+    model-weights))
 
-; ; (require 'avalance.relations)
-; ; (use 'clojure.tools.trace)
-; ; (trace-ns 'avalance.relations)
-; ; (gen-data-uniform inc 3 5 10)
-; (-main)
+; (require 'avalance.relations)
+; (use 'clojure.tools.trace)
+; (trace-ns 'avalance.relations)
+; (gen-data-uniform inc 3 5 10)
+(-main)

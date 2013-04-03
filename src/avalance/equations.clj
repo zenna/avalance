@@ -91,7 +91,8 @@
 (def compound-pcfg
   {:start 'F
    :rules
-    {'F [{:prod '(UF V) :weight 1.6}
+    {'F [ {:prod 'V :weight 3}
+          {:prod '(UF V) :weight 1.6}
           {:prod '(BF V V) :weight 3.4}]
       'UF [{:prod 'Math/sin :weight 1.2}
            {:prod 'Math/cos :weight 1.2}

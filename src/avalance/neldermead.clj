@@ -1,5 +1,5 @@
 (ns avalance.neldermead)
-(use 'avalance.relations)
+; (use 'avalance.relations)
 
 (use 'clojure.math.numeric-tower)
 
@@ -60,7 +60,7 @@
       (if
         (or (>= iter-num 50)
             false)
-        simplex-costs
+        (first (vec (sort-by :cost simplex-costs)))
         (let [simplex-costs (vec (sort-by :cost simplex-costs))
               best-vertex (:vertex (nth simplex-costs 0))
               sec-worst-vertex (:vertex (nth simplex-costs (- (count simplex-costs) 2)))
@@ -87,15 +87,15 @@
                 (vec-f + centroid 
                        (vec-scalar-f * (vec-f - worst-vertex centroid) beta))
               ]
-          (println translation)
-          (println "simplex" simplex-costs)
-          (println "refl" reflection-vertex (cost-func reflection-vertex))
-          (println "exp" expansion-vertex)
-          (println "out-c" out-contraction-vertex)
-          (println "in-c" in-contraction-vertex)
-          (println "worst" worst-vertex (cost-func worst-vertex))
-          (println "best" best-vertex (cost-func best-vertex))
-          (println "sec-worst-vertex" sec-worst-vertex (cost-func sec-worst-vertex))
+          ; (println translation)
+          ; (println "simplex" simplex-costs)
+          ; (println "refl" reflection-vertex (cost-func reflection-vertex))
+          ; (println "exp" expansion-vertex)
+          ; (println "out-c" out-contraction-vertex)
+          ; (println "in-c" in-contraction-vertex)
+          ; (println "worst" worst-vertex (cost-func worst-vertex))
+          ; (println "best" best-vertex (cost-func best-vertex))
+          ; (println "sec-worst-vertex" sec-worst-vertex (cost-func sec-worst-vertex))
           
           ; Reflect: test if cost of reflection point is between best and second worst
           (cond
@@ -163,17 +163,6 @@
   (repeatedly)
   (nelder-mead parameters cost-func (repeatedly (count parameters) rand )))
 
-
-(defn dummy-cost-func
-  "Dummy cost function for testing"
-  [parameters]
-  (reduce + parameters))
-
-(defn make-lambda-args
-  "Make a function from an expression with some args"
-  [expr args]
-  (eval (list 'fn args expr)))
-
 ; a model is an expression :expr (+ (* 'm x) 'c) :params ['m 'c'] :independent-vars
 ; data {'a [1 2 3] 'b [1 2 3]}
 
@@ -185,10 +174,11 @@
   "Take a model and a dataset and produce a function which when given a set of parameters of the model
   will compute the mean squared error of the model against data"
   [model data]
+  ; (if (!= (count (data 'a)) (count (data 'b)))
   (fn [param-values]
     (let [param-map (zipmap (:params model) param-values)]
       (loop [error 0.0 index 0]
-        ; (println "error" error)
+        ; (println  (== (count (data 'a)) (count (data 'b))))
         (if (>= index (count (data 'a)))
           (/ error 2)
           (recur (+ error
@@ -197,29 +187,29 @@
                               2))
             (inc index)))))))
 
-(def example-model
-  {:as-lambda
-  (fn [param-map indep-vars]
-    (+ (param-map 'p1) (Math/pow (param-map 'p2) (indep-vars 'x))))
+; (def example-model
+;   {:as-lambda
+;   (fn [param-map indep-vars]
+;     (+ (param-map 'p1) (Math/pow (param-map 'p2) (indep-vars 'x))))
 
-  :params ['p1 'p2]})
+;   :params ['p1 'p2]})
 
-(def example-model-linear
-  {:as-lambda
-  (fn [param-map indep-vars]
-    ; (println "MODEL!!" param-map indep-vars)
-    (+ (param-map 'p1) (* (param-map 'p2) (indep-vars 'x))))
+; (def example-model-linear
+;   {:as-lambda
+;   (fn [param-map indep-vars]
+;     ; (println "MODEL!!" param-map indep-vars)
+;     (+ (param-map 'p1) (* (param-map 'p2) (indep-vars 'x))))
 
-  :params ['p1 'p2]})
+;   :params ['p1 'p2]})
 
-(def data (gen-data-uniform line 1 100 10))
-; (println "DATA!!!" data)
+; (def data (gen-data-uniform line 1 100 10))
+; ; (println "DATA!!!" data)
 
-(def example-cost (mean-sqr-error example-model-linear data))
+; (def example-cost (mean-sqr-error example-model-linear data))
 
-(defn -main []
-  ; (example-cost [1.5 10]))
-  (nelder-mead example-cost [5.0 5.0]))
-; (require 'avalance.neldermead)
-; (use 'clojure.tools.trace)
-; (trace-ns 'avalance.neldermead)
+; (defn -main []
+;   ; (example-cost [1.5 10]))
+;   (nelder-mead example-cost [5.0 5.0]))
+; ; (require 'avalance.neldermead)
+; ; (use 'clojure.tools.trace)
+; ; (trace-ns 'avalance.neldermead)
