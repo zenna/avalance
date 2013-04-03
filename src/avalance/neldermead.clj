@@ -1,4 +1,7 @@
 (ns avalance.neldermead)
+(use 'avalance.relations)
+
+(use 'clojure.math.numeric-tower)
 
 ;todo
 ; termination tests - start with just number of iterations
@@ -126,7 +129,7 @@
                     {:vertex shrunk-vertex :cost (cost-func shrunk-vertex)}))
                   (remove-nth simplex-costs worst-index))
                 (nth simplex-costs worst-index))
-                (inc iter-num)))))))) 
+                (inc iter-num))))))))
 
   ; (defn model-to-cost-func)
 
@@ -142,12 +145,6 @@
   [parameters]
   (reduce + parameters))
 
-
-(defn find-and-replace
-  "Replaces values in a list with others"
-  [expr param-mapping]
-  ())
-
 (defn make-lambda-args
   "Make a function from an expression with some args"
   [expr args]
@@ -155,24 +152,50 @@
 
 ; a model is an expression :expr (+ (* 'm x) 'c) :params ['m 'c'] :independent-vars
 ; data {'a [1 2 3] 'b [1 2 3]}
-(defn mean-sqr-errord
+
+; assumes data is same size
+; assumes data is a and b
+; as
+; need to go from [1 2 3 4] and ['m 'c 'a 'b'] to {'m: 1.2}
+(defn mean-sqr-error
   "Take a model and a dataset and produce a function which when given a set of parameters of the model
   will compute the mean squared error of the model against data"
   [model data]
   (fn [param-values]
-    (let [model-as-func (make-lambda-args
-                          (find-and-replace model (zipmap (:params model) param-values))
-                          (:independent-vars model))]
+    (let [param-map (zipmap (:params model) param-values)]
       (loop [error 0.0 index 0]
+        ; (println "error" error)
         (if (>= index (count (data 'a)))
           (/ error 2)
           (recur (+ error
-                    (expt (- (nth (data 'a) index) (model-as-func (nth (data 'b) index))) 2))
+                    (Math/pow (- (nth (data 'b) index) 
+                                 ((:as-lambda model) param-map {'x (nth (data 'a) index)}))
+                              2))
             (inc index)))))))
 
+(def example-model
+  {:as-lambda
+  (fn [param-map indep-vars]
+    (+ (param-map 'p1) (Math/pow (param-map 'p2) (indep-vars 'x))))
+
+  :params ['p1 'p2]})
+
+(def example-model-linear
+  {:as-lambda
+  (fn [param-map indep-vars]
+    ; (println "MODEL!!" param-map indep-vars)
+    (+ (param-map 'p1) (* (param-map 'p2) (indep-vars 'x))))
+
+  :params ['p1 'p2]})
+
+(def data (gen-data-uniform line 1 100 10))
+; (println "DATA!!!" data)
+
+(def example-cost (mean-sqr-error example-model-linear data))
+
 (defn -main []
-  (nelder-mead dummy-cost-func [1.0 2.0 3.0]))
+  ; (example-cost [1.5 10]))
+  (nelder-mead example-cost [0.5 2.0]))
 ; (require 'avalance.neldermead)
 ; (use 'clojure.tools.trace)
 ; (trace-ns 'avalance.neldermead)
-(-main)

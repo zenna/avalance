@@ -87,18 +87,23 @@
   [D]
   (* 1.5 (expt D (/ 3 2))))
 
-(defn -main
-  []
-  ;1. Generate data 
-  (let [data (gen-data-uniform kepler 1 100 100)
-    ;2. Generate simple functions of data
-    data-compounds (gen-data-compounds data 10)
-    ;3. For each pair of compounds, produce plot, evaluate each plot on each fragment
-    model-weights (find-bias data data-compounds models)]
-    model-weights))
+(defn line
+  [x]
+  (+ 1.5 (* 10 x)))
 
-; (require 'avalance.relations)
-; (use 'clojure.tools.trace)
-; (trace-ns 'avalance.relations)
-; (gen-data-uniform inc 3 5 10)
-(-main)
+
+; (defn -main
+;   []
+;   ;1. Generate data 
+;   (let [data (gen-data-uniform kepler 1 100 100)
+;     ;2. Generate simple functions of data
+;     data-compounds (gen-data-compounds data 10)
+;     ;3. For each pair of compounds, produce plot, evaluate each plot on each fragment
+;     model-weights (find-bias data data-compounds models)]
+;     model-weights))
+
+; ; (require 'avalance.relations)
+; ; (use 'clojure.tools.trace)
+; ; (trace-ns 'avalance.relations)
+; ; (gen-data-uniform inc 3 5 10)
+; (-main)
