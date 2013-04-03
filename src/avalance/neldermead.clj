@@ -54,17 +54,16 @@
         simplex (init-simplex init-point step-size)]
     (loop [simplex-costs (mapv (fn [vertex] {:vertex vertex :cost (cost-func vertex)}) simplex)
            iter-num 0 translation "NOTHING"]
-      (println translation)
       ; Ordering: find worst, second worst and best point
       ; simplex-costs [{:vertex [.2 .3 .4] :cost .35} {...} ...]
       ; Check termination conditions first
       (if
-        (or (>= iter-num 10)
+        (or (>= iter-num 50)
             false)
         simplex-costs
         (let [simplex-costs (vec (sort-by :cost simplex-costs))
               best-vertex (:vertex (nth simplex-costs 0))
-              sec-best-vertex (:vertex (nth simplex-costs 1))
+              sec-worst-vertex (:vertex (nth simplex-costs (- (count simplex-costs) 2)))
               worst-vertex (:vertex (last simplex-costs))
               worst-index (dec (count simplex-costs))
               ; find centroid of the best side — opposite worst vertex 
@@ -86,12 +85,22 @@
                        (vec-scalar-f * (vec-f - reflection-vertex centroid) beta))
               in-contraction-vertex
                 (vec-f + centroid 
-                       (vec-scalar-f * (vec-f - worst-vertex centroid) beta))]
+                       (vec-scalar-f * (vec-f - worst-vertex centroid) beta))
+              ]
+          (println translation)
+          (println "simplex" simplex-costs)
+          (println "refl" reflection-vertex (cost-func reflection-vertex))
+          (println "exp" expansion-vertex)
+          (println "out-c" out-contraction-vertex)
+          (println "in-c" in-contraction-vertex)
+          (println "worst" worst-vertex (cost-func worst-vertex))
+          (println "best" best-vertex (cost-func best-vertex))
+          (println "sec-worst-vertex" sec-worst-vertex (cost-func sec-worst-vertex))
           
           ; Reflect: test if cost of reflection point is between best and second worst
           (cond
-            (and (< (cost-func worst-vertex) (cost-func reflection-vertex))
-                  (<= (cost-func reflection-vertex) (cost-func best-vertex)))
+            (and (< (cost-func reflection-vertex) (cost-func sec-worst-vertex))
+                  (<= (cost-func best-vertex) (cost-func reflection-vertex)))
             ; if so swap worst point for reflection point, terminate and recurse 
             (recur (assoc simplex-costs worst-index
               {:vertex reflection-vertex :cost (cost-func reflection-vertex)})
@@ -99,16 +108,25 @@
               "REFLECTED")
 
             ; Expand: If reflection point is better than best, compute expansion point
-            (and (< (cost-func best-vertex) (cost-func reflection-vertex))
-                 (< (cost-func reflection-vertex) (cost-func expansion-vertex)))
+            (and (< (cost-func reflection-vertex) (cost-func best-vertex))
+                 (< (cost-func expansion-vertex) (cost-func reflection-vertex)))
             
             (recur (assoc simplex-costs worst-index
               {:vertex expansion-vertex :cost (cost-func expansion-vertex)})
               (inc iter-num)
               "EXPANDED")
 
+            ; Expand: If reflection point is better than best, compute expansion point
+            (and (< (cost-func reflection-vertex) (cost-func best-vertex))
+                 (>= (cost-func expansion-vertex) (cost-func reflection-vertex)))
+            
+            (recur (assoc simplex-costs worst-index
+              {:vertex reflection-vertex :cost (cost-func reflection-vertex)})
+              (inc iter-num)
+              "EXPANDED2")
+
             ; Contract Outside: if fs <= fr < fh
-            (and (<= (cost-func sec-best-vertex) (cost-func reflection-vertex))
+            (and (>= (cost-func reflection-vertex) (cost-func sec-worst-vertex))
                  (< (cost-func reflection-vertex) (cost-func worst-vertex))
                  (<= (cost-func out-contraction-vertex) (cost-func reflection-vertex)))
 
@@ -118,8 +136,8 @@
               "OUTCONTRACTED")
 
             ; Contract Outside: if fs <= fr < fh
-            (and (>= (cost-func reflection-vertex) (cost-func worst-vertex)
-                 (< (cost-func centroid) (cost-func in-contraction-vertex))))
+            (and (>= (cost-func reflection-vertex) (cost-func worst-vertex))
+                 (< (cost-func in-contraction-vertex) (cost-func worst-vertex)))
 
             (recur (assoc simplex-costs worst-index
               {:vertex in-contraction-vertex :cost (cost-func in-contraction-vertex)})
@@ -201,7 +219,7 @@
 
 (defn -main []
   ; (example-cost [1.5 10]))
-  (nelder-mead example-cost [0.5 2.0]))
+  (nelder-mead example-cost [5.0 5.0]))
 ; (require 'avalance.neldermead)
 ; (use 'clojure.tools.trace)
 ; (trace-ns 'avalance.neldermead)
