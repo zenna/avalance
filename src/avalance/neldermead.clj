@@ -53,7 +53,8 @@
         delta 0.5
         simplex (init-simplex init-point step-size)]
     (loop [simplex-costs (mapv (fn [vertex] {:vertex vertex :cost (cost-func vertex)}) simplex)
-           iter-num 0]
+           iter-num 0 translation "NOTHING"]
+      (println translation)
       ; Ordering: find worst, second worst and best point
       ; simplex-costs [{:vertex [.2 .3 .4] :cost .35} {...} ...]
       ; Check termination conditions first
@@ -94,7 +95,8 @@
             ; if so swap worst point for reflection point, terminate and recurse 
             (recur (assoc simplex-costs worst-index
               {:vertex reflection-vertex :cost (cost-func reflection-vertex)})
-              (inc iter-num))
+              (inc iter-num)
+              "REFLECTED")
 
             ; Expand: If reflection point is better than best, compute expansion point
             (and (< (cost-func best-vertex) (cost-func reflection-vertex))
@@ -102,7 +104,8 @@
             
             (recur (assoc simplex-costs worst-index
               {:vertex expansion-vertex :cost (cost-func expansion-vertex)})
-              (inc iter-num))
+              (inc iter-num)
+              "EXPANDED")
 
             ; Contract Outside: if fs <= fr < fh
             (and (<= (cost-func sec-best-vertex) (cost-func reflection-vertex))
@@ -111,7 +114,8 @@
 
             (recur (assoc simplex-costs worst-index
               {:vertex out-contraction-vertex :cost (cost-func out-contraction-vertex)})
-              (inc iter-num))
+              (inc iter-num)
+              "OUTCONTRACTED")
 
             ; Contract Outside: if fs <= fr < fh
             (and (>= (cost-func reflection-vertex) (cost-func worst-vertex)
@@ -119,7 +123,8 @@
 
             (recur (assoc simplex-costs worst-index
               {:vertex in-contraction-vertex :cost (cost-func in-contraction-vertex)})
-              (inc iter-num))
+              (inc iter-num)
+              "IN CONTRACTED")
 
             ; Otherwise shrink!
             :else 
@@ -129,7 +134,8 @@
                     {:vertex shrunk-vertex :cost (cost-func shrunk-vertex)}))
                   (remove-nth simplex-costs worst-index))
                 (nth simplex-costs worst-index))
-                (inc iter-num))))))))
+                (inc iter-num)
+                "SHRANK")))))))
 
   ; (defn model-to-cost-func)
 
