@@ -8,10 +8,7 @@
 
 
 ; TODO
-
-; FIX EXPRESSION Generator
-; * Avoid making nulls
-; * How to evaluate models - nedler mead 
+; Handle nil!
 
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform
@@ -27,6 +24,16 @@
           (recur (+ x (/ (- max-val min-val) num-samples)) (concat xs [x]) (concat fxs [(func x)]))
         ))))
 
+(defn expr-covaries?
+  [expr data]
+  "Does the exprs covary with the data"
+  true)
+
+(defn expr-unique?
+  [expr exprs data]
+  "Is this exprs not already in the list of exprs"
+  true)
+
 (defn gen-data-compounds
   "Generate functions of data variables"
   [data num-to-gen]
@@ -34,22 +41,28 @@
   ; Create terminals
   ; For convenience, functions are unary, expecting "data" arg
   (let [data-prods (map (fn [variable] {:prod (list 'data (list 'quote variable)) :weight 1.0}) (keys data))
-      new-pcfg (add-data-to-pcfg data-prods compound-pcfg)
-      expr-depth 2]
+        new-pcfg (add-data-to-pcfg data-prods compound-pcfg)
+        expr-depth 2]
     (map
       ; Convert expr -> {:as-expr expr :as-lambda computeable-expr}
       (fn [expr] {:as-expr expr :as-lambda (make-lambda-args expr '[data])})
-      (repeatedly num-to-gen #(gen-expr-pcfg new-pcfg)))))
+      (loop [exprs [] num-left-to-gen num-to-gen]
+        (let [expr (gen-expr-pcfg new-pcfg)
+              expr-data (create-compound-data compounds data)]
+          (cond
+            (zero? num-left-to-gen) exprs
 
-; For each pair of compounds, I need to evaluate the likeliness of the model
-; Returns [{:compounds [list of compounds] :model AMODEL :score 123 }, ...]
+            (and (expr-covaries? expr data) (expr-unique? expr exprs data))
+              (recur (conj exprs expr) (dec num-left-to-gen))
+
+            :else
+              (recur exprs num-left-to-gen)))))))
+
 (defn create-compound-data
-  "Converts data into compound data"
+  "Applies compounds to data to generated transformed dataset
+  Returns: ['a []"
   [compounds data]
-  ; For each model evaluate the best fit I can get of the data
-  ; 1. Generate compound-data
-  ; 2. (nelder-mead example-cost [5.0 5.0])
-  ; (println compounds)
+        ; Convert from {'a [1 2 3] 'b [4 5 6]} -> [{'a 1 'b 3} {'a 2 'b 4} ..]
   (let [reformated-data (for [index (range (count (data 'a)))]
                               {'a (nth (data 'a) index) 'b (nth (data 'b) index)})
         new-data {'a (map (:as-lambda (first compounds)) reformated-data) 
@@ -57,7 +70,7 @@
     ; (println "NEW DATA" new-data)
     new-data))
   
-
+; Returns [what is love! baby dont hurt me]
 (defn eval-models
   "Returns error for best fit of all models against data"
   [compounds data models]
@@ -76,29 +89,19 @@
     ; (println mm "\n")
     mm))
 
-; Data is a matrix, vector of vectors: one for each variable over some interval.
-; Returns [{:compounds [list of compounds] :model AMODEL :score 123 }, ...]
-(defn find-bias
-  "Finds the biases for search: for the data and all pairs of compounds, we scores the models"
-  [data data-compounds models]
+(defn find-expr
+  "Searches for an expression"
+  [data models]
+  (let [num-compounds 2;(inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
+        num-tests 20]
+    (loop [weights [] num-tests-left num-tests]
+      (let [compounds (gen-data-compounds data num-compounds)]
+        (cond
+          (zero? num-tests-left)
+            weights
 
-  ; Sanity check for size of compounds
-  (cond
-    (<= (count data-compounds) 2)
-      (throw (Exception. "Size must be gte to 2 since all pairs are different"))
-    :else
-      ; Data-compounds are  simple functions of data variables, e.g. a/b or sin(a)
-      ; We want to check all different pairs of compounds against our models
-      (loop [x-compounds data-compounds y-compounds data-compounds weights []]
-        (let [x (first x-compounds) y (first (rest y-compounds))]
-          ; (println (count x-compounds) "-" (count y-compounds) "->" (:as-expr x) "--- VS ---" (:as-expr y))
-          (cond
-            (> (count y-compounds) 2)
-              (recur x-compounds (rest y-compounds) (concat weights (eval-models [x y] (create-compound-data [x y] data) models)))
-            (> (count x-compounds) 2)
-              (recur (rest x-compounds) (rest x-compounds) (concat weights (eval-models [x y] (create-compound-data [x y] data) models)))
-            :else
-              (concat weights (eval-models [x y] (create-compound-data [x y] data) models)))))))
+          :else
+            (recur (conj weights (eval-models compounds (create-compound-data compounds data) models)) (dec num-tests-left)))))))
 
 ; Models are expressions, which have parameters and variables
 ; Parameters are values to be optmised in eval-models
@@ -111,7 +114,7 @@
   :params ['p1 'p2]
   :name 'exptmodel})
 
-(def exp-model2
+(def power-model
   {:as-lambda
   (fn [param-map indep-vars]
     (+ (param-map 'p1) (Math/pow (indep-vars 'x) (param-map 'p2))))
@@ -130,7 +133,8 @@
 
 (def models
   [exp-model
-   exp-model2
+   power-model
+   linear-model
    ])
 
 ; Example function from Herb Simon
@@ -142,15 +146,15 @@
   [x]
   (+ 1.5 (* 10 x)))
 
+(defn a-little-complex
+  [x]
+  (+ (* x x) (* Math/sin x) 3))
 
 (defn -main
   []
   ;1. Generate data 
-  (let [data (gen-data-uniform kepler 1 100 10)
-    ;2. Generate simple functions of data
-    data-compounds (gen-data-compounds data 30)
-    ;3. For each pair of compounds, produce plot, evaluate each plot on each fragment
-    model-weights (subvec (vec (sort-by :score (find-bias data data-compounds models))) 0 5)]
+  (let [data (gen-data-uniform a-little-complex 1 100 10)
+        model-weights (subvec (vec (sort-by :score (find-expr data models))) 0 5)]
     model-weights))
 
 ; (require 'avalance.relations)
