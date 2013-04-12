@@ -58,7 +58,7 @@
            {:prod 'Math/cos :weight 1.2}
            {:prod 'inc :weight 1.2}]
       'BF [{:prod '+   :weight 1.0}
-           {:prod '-   :weight 4.0}
+           {:prod '-   :weight 1.0}
            {:prod '*   :weight 1.0}
            {:prod '/   :weight 1.0}]
       'V  [{:prod 'F   :weight 1.0}]}})

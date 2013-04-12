@@ -5,10 +5,15 @@
 (use 'clojure.math.numeric-tower)
 (use 'avalance.equations)
 (use 'avalance.neldermead)
+(use 'avalance.helpers)
+
 
 
 ; TODO
 ; Handle nil!
+; Return right data structure from gen thing
+; Implement expressiong testing to prevent stupid expressions
+; 
 
 ; If I input into the functions a map:
 ; Then 1. I waste computation dereferences it
@@ -67,10 +72,19 @@
 
 (defn build-expr-metadata
   [expr data-vars]
-  "Convert a subexpression to "
-  {:as-expr expr
-   :as-lambda (make-lambda-args expr data-vars)
-   :arg-map (sort-by val < (zipmap data-vars (range (count data-vars))))})
+  "Convert a subexpression to one with executable lambda and argument map"
+  (let [flat-expr (flatten expr)
+        vars-in-expr
+    (vec (for [symb data-vars
+          :when (in? flat-expr symb)]
+      symb))]
+    ; We need to find out which data variables are actually in the expression
+    {:as-expr expr
+     :as-lambda (make-lambda-args expr vars-in-expr)
+     ; arg-map is maps data variable to position in argument list e.g. {'a 0 'b 1}
+     ; it must be sorted for convenience in rearrange-args 
+     :arg-map (sort-by val < (zipmap vars-in-expr (range (count vars-in-expr))))
+     :var vars-in-expr}))
 
 
 ; TODO make this return the data too and do the hard generating part
@@ -78,8 +92,6 @@
   "Generate functions of data variables"
   [data num-to-gen]
 
-  ; Create terminals
-  ; For convenience, functions are unary, expecting "data" arg
   ; TODO I AM USING ALL THE DATA VARS AS THE INPUT TO THE FUNCTIONS, E.G (defn myfn [x y z] (+ x y))
   ;      SHOULD SEE WHICH VARS ARE ACTUALLY USED IN EXPRESSION
   (let [data-vars (vec (keys data))
@@ -98,27 +110,21 @@
                 (recur (merge exprs expr-data) (dec num-left-to-gen))
 
                 :else
-                (recur exprs num-left-to-gen))))
-        ok (println expr-exprs-data)]
-
-        expr-exprs-data))
+                (recur exprs num-left-to-gen))))]
     
-    ; ; First generate expressions now package it up nicely
-    ; {:subexprs
-    ; (map
-    ;   ; Convert expr -> {:as-expr expr :as-lambda computeable-expr}
-    ;   (fn [expr] {:as-expr expr
-    ;               :as-lambda (make-lambda-args expr data-vars)
-    ;               :arg-map (sort-by val < (zipmap data-vars (range (count data-vars))))})
-    ;   (keys expr-exprs-data))
-   
-    ;  :subexpr-data
-    ;  expr-exprs-data}))
+    ; First generate expressions now package it up nicely
+    {:subexprs
 
-; Returns [what is love! baby dont hurt me]
+     ; PERFORMANCE: MEMOIZE build-expr-metadata
+     (map #(build-expr-metadata %1 data-vars) (keys expr-exprs-data))
+
+     :subexpr-data
+     expr-exprs-data}))
+
+; ; Returns [what is love! baby dont hurt me]
 ; (defn eval-model
 ;   "Returns error for best fit of all models against data"
-;   [subexpr data model]
+;   [subexprs data model]
 ;     (let [cost-func (mean-sqr-error model data)
 ;           best-param-fit-model (nelder-mead cost-func [1.0 1.0])]
 ;       {:subexprs subexprs :model model :score (:cost best-param-fit-model)}))
@@ -135,6 +141,10 @@
 (defn accept-model?
   "Should we continue down this path"
   [score model num-tests-left])
+
+(defn bind-subexpr-to-model
+  "Creates a mapping between the variables of a sub expression and those of model"
+  [subbexpr model])
 
 ; The output of this function should be a list of size >= 1 of models with parameters instantiated
 
@@ -161,7 +171,8 @@
 ;                {subexprs :subexpr subexprs-data :subexpr-data} (gen-subexprs data num-subexprs)]
 ;           (let [model (sample-model sampled-models models data)
 ;                 sampled-models (conj sampled-models model)
-;                 score (eval-model subexprs (create-compound-data compounds data) model)]
+;                 subexpr-model-binding (bind-subexpr-to-model )
+;                 score (eval-model subexprs subexpr-data model)]
 ;             ; I've now chosen a model, I need to decide if a) I need to fit this model b)
 ;             ; What's wrong is that if the score is perfect then I need go no further
 ;             ; Also I may want a memory of what I have tried so far, I don't want to forget
@@ -298,7 +309,7 @@
   (+ (* x x) (* (Math/sin x) 3)))
 
 (def dt {'a [1 2 3] 'b [10 14 12]})
-(gen-subexprs dt 2)
+(println (gen-subexprs dt 2))
 
 (defn -main[])
 

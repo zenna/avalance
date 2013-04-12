@@ -1,3 +1,5 @@
+(ns avalance.helpers)
+
 ;Helprs
 (defn between
   "Applies f(x,y) to list[n,n+1] to create a list of size count - 1"
@@ -59,3 +61,24 @@
 (defn tolerant=
   [x y]
   (< (* (x x) 0.001)))
+
+(defn in? 
+  "true if seq contains elm"
+  [seq elm]  
+  (some #(= elm %) seq))
+
+(defn memoize-n
+  "Returns a memoized version of a referentially transparent function. The
+  memoized version of the function keeps a cache of  the mapping from arguments
+  to results and, when calls with the same arguments are repeated often, has
+  higher performance at the expense of higher memory use."
+  {:added "1.0"
+   :static true}
+  [f n]
+  (let [mem (atom {})]
+    (fn [& args]
+      (if-let [e (find @mem args)]
+        (val e)
+        (let [ret (apply f args)]
+          (swap! mem assoc args ret)
+          ret)))))
