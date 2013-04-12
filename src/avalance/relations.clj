@@ -224,7 +224,7 @@
           (let [;model (sample-model sampled-models models data)
                 model (first models)
                 sampled-models (conj sampled-models model)
-                var-binding (bind-subexpr-to-model subexprs model)
+                var-binding (bind-subexpr-to-model 1 model)
                 score (eval-model subexprs subexprs-data model)
                 ok (println "score i dont belive it" score)]
             ; I've now chosen a model, I need to decide if a) I need to fit this model b)
