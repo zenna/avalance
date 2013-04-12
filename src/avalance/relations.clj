@@ -100,7 +100,7 @@
   ; TODO I AM USING ALL THE DATA VARS AS THE INPUT TO THE FUNCTIONS, E.G (defn myfn [x y z] (+ x y))
   ;      SHOULD SEE WHICH VARS ARE ACTUALLY USED IN EXPRESSION
   (let [data-vars (vec (keys data))
-        data-prods (map (fn [variable] {:prod variable :weight 1.0}) data-vars)
+        data-prods (map (fn [variable] {:prod variable :weight 10.0}) data-vars)
         new-pcfg (add-data-to-pcfg data-prods compound-pcfg)
         expr-exprs-data
           (loop [exprs {} num-left-to-gen num-to-gen]
@@ -351,7 +351,9 @@
   (+ (* x x) (* (Math/sin x) 3)))
 
 (def dt {'a [1 2 3] 'b [10 14 12]})
-; (def subsa (gen-subexprs dt 2))
+(def data (gen-data-uniform line 1 100 10))
+(def subsexprs (gen-subexprs data 2))
+
 ; (def okb (:subexprs-data subsa))
 ; (println "C" (bind-data-to-model okb linear-model))
 
@@ -359,7 +361,7 @@
 
 ; (println "OK" (reduce #(concat (:vars %1) (:vars %2)) okb))
 
-(find-expr dt models) 
+(find-expr data models) 
 
 (defn -main[])
 
