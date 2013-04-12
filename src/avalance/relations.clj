@@ -89,7 +89,7 @@
      ; arg-map is maps data variable to position in argument list e.g. {'a 0 'b 1}
      ; it must be sorted for convenience in rearrange-args 
      :arg-map (sort-by val < (zipmap vars-in-expr (range (count vars-in-expr))))
-     :var vars-in-expr}))
+     :vars vars-in-expr}))
 
 
 ; TODO make this return the data too and do the hard generating part
@@ -123,7 +123,7 @@
      ; PERFORMANCE: MEMOIZE build-expr-metadata
      (map #(build-expr-metadata %1 data-vars) (keys expr-exprs-data))
 
-     :subexpr-data
+     :subexprs-data
      expr-exprs-data}))
 
 ; a model is an expression :expr (+ (* 'm x) 'c) :params ['m 'c'] :independent-vars
@@ -149,20 +149,25 @@
   ; PERFORMANCE I COULD USE PARTIAL EVALUATION TO MAKE THIS FASTER I.E DO THE BINDING ONCE
   (fn [param-values]
     ; WARNING CODE ASSUMES args is sorted
+    ; (println "model" model "\n\n Data" data "\n\n varbinding" var-binding)
     (let [param-binding (zipmap (:params model) param-values)
           data-size (count (data (first (keys data))))]
+          ; (println "param-binding" param-binding "\n\n datasize" (:lhs-arg-map model))
+
       (loop [accum-error 0.0 index 0]
         (if (>= index data-size)
           (/ accum-error 2)
           (let [lhs-rhs
             (map
               (fn [model-side]
-                (let [args (for [arg (keys (:arg-map model))
+                ; (println "mdoel-side" model-side )
+                (let [args (for [arg (keys (:arg-map model-side))
                           :let [value (if (in? (:vars model) arg)
                                           (nth (data (var-binding arg)) index)
                                           (param-binding arg))]]
                           value)]
-                  (apply (:as-lambda model) args)))
+                    ; (println "args!!!!" args "keys!!!" (keys (:arg-map model-side) ))
+                  (apply (:as-lambda model-side) args)))
               
               [{:arg-map (:lhs-arg-map model) :as-lambda (:lhs-as-lambda model)}
                {:arg-map (:rhs-arg-map model) :as-lambda (:rhs-as-lambda model)}])
@@ -175,8 +180,8 @@
 ; Returns [what is love! baby dont hurt me]
 (defn eval-model
   "Returns error for best fit of all models against data"
-  [subexprs data model]
-    (let [cost-func (mean-sqr-error model data)
+  [subexprs data model var-binding]
+    (let [cost-func (mean-sqr-error model data var-binding)
           best-param-fit-model (nelder-mead cost-func [1.0 1.0])]
       {:subexprs subexprs :model model :score (:cost best-param-fit-model)}))
 
@@ -193,10 +198,11 @@
   "Should we continue down this path"
   [score model num-tests-left])
 
-(defn bind-subexpr-to-model
+(defn bind-data-to-model
   "Creates a mapping between the variables of a sub expression and those of model"
-  [subexprs model]
-  (zipmap (:vars model) (reduce #(concat (:vars %1) (:vars %2)) subexprs)))
+  [data model]
+  ; (println "DATA" data "MODEL" model)
+  (zipmap (:vars model) (keys data)))
 
 ; The output of this function should be a list of size >= 1 of models with parameters instantiated
 
@@ -217,16 +223,18 @@
   (let [num-subexprs 2;(inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
         max-num-plots 20]
     (loop [equations [] num-plots-left max-num-plots]
-      (let [{subexprs :subexpr subexprs-data :subexpr-data} (gen-subexprs data num-subexprs)
+      (let [subexprs-subexprs-data (gen-subexprs data num-subexprs)
+            subexprs (:subexprs subexprs-subexprs-data)
+            subexprs-data (:subexprs-data subexprs-subexprs-data)
             equations (conj equations
         (loop [sampled-models []
                equations []]
           (let [;model (sample-model sampled-models models data)
                 model (first models)
                 sampled-models (conj sampled-models model)
-                var-binding (bind-subexpr-to-model 1 model)
-                score (eval-model subexprs subexprs-data model)
-                ok (println "score i dont belive it" score)]
+                var-binding (bind-data-to-model subexprs-data model)
+                score (eval-model subexprs subexprs-data model var-binding)]
+                (println score)
             ; I've now chosen a model, I need to decide if a) I need to fit this model b)
             ; What's wrong is that if the score is perfect then I need go no further
             ; Also I may want a memory of what I have tried so far, I don't want to forget
@@ -343,9 +351,15 @@
   (+ (* x x) (* (Math/sin x) 3)))
 
 (def dt {'a [1 2 3] 'b [10 14 12]})
-; (println (gen-subexprs dt 2))
+; (def subsa (gen-subexprs dt 2))
+; (def okb (:subexprs-data subsa))
+; (println "C" (bind-data-to-model okb linear-model))
 
-(find-expr dt models)
+; ; (println "oakdaok" (first okb));(concat (:vars (first okb))  (:vars (second okb))))
+
+; (println "OK" (reduce #(concat (:vars %1) (:vars %2)) okb))
+
+(find-expr dt models) 
 
 (defn -main[])
 
