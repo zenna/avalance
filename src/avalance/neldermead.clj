@@ -163,29 +163,7 @@
   (repeatedly)
   (nelder-mead parameters cost-func (repeatedly (count parameters) rand )))
 
-; a model is an expression :expr (+ (* 'm x) 'c) :params ['m 'c'] :independent-vars
-; data {'a [1 2 3] 'b [1 2 3]}
 
-; assumes data is same size
-; assumes data is a and b
-; as
-; need to go from [1 2 3 4] and ['m 'c 'a 'b'] to {'m: 1.2}
-(defn mean-sqr-error
-  "Take a model and a dataset and produce a function which when given a set of parameters of the model
-  will compute the mean squared error of the model against data"
-  [model data]
-  ; (if (!= (count (data 'a)) (count (data 'b)))
-  (fn [param-values]
-    (let [param-map (zipmap (:params model) param-values)]
-      (loop [error 0.0 index 0]
-        ; (println  (== (count (data 'a)) (count (data 'b))))
-        (if (>= index (count (data 'a)))
-          (/ error 2)
-          (recur (+ error
-                    (Math/pow (- (nth (data 'b) index) 
-                                 ((:as-lambda model) param-map {'x (nth (data 'a) index)}))
-                              2))
-            (inc index)))))))
 
 ; (def example-model
 ;   {:as-lambda
