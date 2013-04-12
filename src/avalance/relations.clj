@@ -13,7 +13,11 @@
 ; Handle nil!
 ; Return right data structure from gen thing
 ; Implement expressiong testing to prevent stupid expressions
-; 
+; bind variables to model
+; update cost func to take into account new model form
+; decide accept criterion
+; write code to
+; choose sub expression of 
 
 ; If I input into the functions a map:
 ; Then 1. I waste computation dereferences it
@@ -73,11 +77,12 @@
 (defn build-expr-metadata
   [expr data-vars]
   "Convert a subexpression to one with executable lambda and argument map"
-  (let [flat-expr (flatten expr)
+  (let [flat-expr (if (symbol? expr) (list expr) (flatten expr))
         vars-in-expr
     (vec (for [symb data-vars
           :when (in? flat-expr symb)]
       symb))]
+    ; (println "EXPR" expr  "VARS" vars-in-expr "DATAVARS" data-vars "FLAT "flat-expr "LISt?" (symbol? expr) )
     ; We need to find out which data variables are actually in the expression
     {:as-expr expr
      :as-lambda (make-lambda-args expr vars-in-expr)
@@ -121,13 +126,59 @@
      :subexpr-data
      expr-exprs-data}))
 
-; ; Returns [what is love! baby dont hurt me]
-; (defn eval-model
-;   "Returns error for best fit of all models against data"
-;   [subexprs data model]
-;     (let [cost-func (mean-sqr-error model data)
-;           best-param-fit-model (nelder-mead cost-func [1.0 1.0])]
-;       {:subexprs subexprs :model model :score (:cost best-param-fit-model)}))
+; a model is an expression :expr (+ (* 'm x) 'c) :params ['m 'c'] :independent-vars
+; data {'a [1 2 3] 'b [1 2 3]}
+; assumes data is same size
+; assumes data is a and b
+; as
+; need to go from [1 2 3 4] and ['m 'c 'a 'b'] to {'m: 1.2}
+; TODO GENERALISE THIS TO F, maybe, and use for declaring variables
+
+(defn mean-sqr-error
+  "Take a model and a dataset and produce a function which when given a set of parameters of the model
+  will compute the mean squared error of the model against data"
+  [model data var-binding]
+  ; var-binding e.g. {a: x b: y}
+  ; model: lhs-arg-map e.g. {'x 0 'c 1 'm 2}
+  ; so for every symbol in model arg-map
+  ; I need to take symbol determine whether it is a variable or a parameter
+  ; if it is a variable I need to look it up in var-binding
+  ; e.g. x-> variable -> a and put it in the vector position at that slot 0
+  ; variable binding is model-variabl -> datavariable e.g. x->a
+
+  ; PERFORMANCE I COULD USE PARTIAL EVALUATION TO MAKE THIS FASTER I.E DO THE BINDING ONCE
+  (fn [param-values]
+    ; WARNING CODE ASSUMES args is sorted
+    (let [param-binding (zipmap (:params model) param-values)
+          data-size (count (data (first (keys data))))]
+      (loop [accum-error 0.0 index 0]
+        (if (>= index data-size)
+          (/ accum-error 2)
+          (let [lhs-rhs
+            (map
+              (fn [model-side]
+                (let [args (for [arg (keys (:arg-map model))
+                          :let [value (if (in? (:vars model) arg)
+                                          (nth (data (var-binding arg)) index)
+                                          (param-binding arg))]]
+                          value)]
+                  (apply (:as-lambda model) args)))
+              
+              [{:arg-map (:lhs-arg-map model) :as-lambda (:lhs-as-lambda model)}
+               {:arg-map (:rhs-arg-map model) :as-lambda (:rhs-as-lambda model)}])
+
+                 error (- (first lhs-rhs) (second lhs-rhs))]
+
+            (recur (+ accum-error (Math/pow error 2))
+                   (inc index))))))))
+
+; Returns [what is love! baby dont hurt me]
+(defn eval-model
+  "Returns error for best fit of all models against data"
+  [subexprs data model]
+    (let [cost-func (mean-sqr-error model data)
+          best-param-fit-model (nelder-mead cost-func [1.0 1.0])]
+      {:subexprs subexprs :model model :score (:cost best-param-fit-model)}))
 
 ; Selection of models should be based on the data, and the available models
 (defn sample-model
@@ -144,83 +195,64 @@
 
 (defn bind-subexpr-to-model
   "Creates a mapping between the variables of a sub expression and those of model"
-  [subbexpr model])
+  [subexprs model]
+  (zipmap (:vars model) (reduce #(concat (:vars %1) (:vars %2)) subexprs)))
 
 ; The output of this function should be a list of size >= 1 of models with parameters instantiated
 
 ; There are three loops
 ; Should I should I try a new set of subexprs?
-  ;- No? return my equations
+  ; - No? return my equations
 ; For this given set of subexprs should I try a new model
-  ;- No? Return
+  ; - No? Return
 ; For this model should I try a new error extension?
 
-;; Terms: subexpr - a function of the data, which when evaluated will return a real number
-;         model   - a predicate expression containing parameters as well as variables, cannot be evaluated unless params are instantiated
-;         equation - a (set of) models with params instatiated
+; Terms: subexpr - a function of the data, which when evaluated will return a real number
+        ; model   - a predicate expression containing parameters as well as variables, cannot be evaluated unless params are instantiated
+        ; equation - a (set of) models with params instatiated
 
-; (defn find-expr
-;   "Searches for an expression"
-;   [data models]
-;   (let [num-subexprs 2;(inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
-;         max-num-plots 20]
-;     (loop [equations [] num-plots-left max-num-plots]
-;       (let [equations (conj equations        
-;         (loop [sampled-models []
-;                equations []
-;                {subexprs :subexpr subexprs-data :subexpr-data} (gen-subexprs data num-subexprs)]
-;           (let [model (sample-model sampled-models models data)
-;                 sampled-models (conj sampled-models model)
-;                 subexpr-model-binding (bind-subexpr-to-model )
-;                 score (eval-model subexprs subexpr-data model)]
-;             ; I've now chosen a model, I need to decide if a) I need to fit this model b)
-;             ; What's wrong is that if the score is perfect then I need go no further
-;             ; Also I may want a memory of what I have tried so far, I don't want to forget
-;             ; I also 
-;             ; The test should tell us whether to a) take one of the sampled models, b) to sample some more models
-;             ; or c) to try to extend a model
-;             (cond
-;               (accept-equation? equation scores num-tests-left)
-;               equation
+(defn find-expr
+  "Searches for an expression"
+  [data models]
+  (let [num-subexprs 2;(inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
+        max-num-plots 20]
+    (loop [equations [] num-plots-left max-num-plots]
+      (let [{subexprs :subexpr subexprs-data :subexpr-data} (gen-subexprs data num-subexprs)
+            equations (conj equations
+        (loop [sampled-models []
+               equations []]
+          (let [;model (sample-model sampled-models models data)
+                model (first models)
+                sampled-models (conj sampled-models model)
+                var-binding (bind-subexpr-to-model subexprs model)
+                score (eval-model subexprs subexprs-data model)
+                ok (println "score i dont belive it" score)]
+            ; I've now chosen a model, I need to decide if a) I need to fit this model b)
+            ; What's wrong is that if the score is perfect then I need go no further
+            ; Also I may want a memory of what I have tried so far, I don't want to forget
+            ; I also 
+            ; The test should tell us whether to a) take one of the sampled models, b) to sample some more models
+            ; or c) to try to extend a model
+            (cond
+              true;(accept-equation? equation scores num-tests-left)
+              score
 
-;               (extend?)
-;               (extend the model the model)
-;               ; If I can't find a good extension then I might one to try a new model, or a I might want to just accept this model
-;               ; 
+              ; (extend?)
+              ; (extend the model the model)
+              ; ; If I can't find a good extension then I might one to try a new model, or a I might want to just accept this model
+              ; ; 
 
-;               :else
-;               (recur sampled-models equations)))))]
+              :else
+              (recur sampled-models equations)))))]
         
-;         (cond
-;           (try-more-subexprs? equations)
-;             (recur equations (dec num-plots-left))
+        (cond
+          false
+          ; (try-more-subexprs? equations)
+          (recur equations (dec num-plots-left))
 
-;           :else
-;             equations)))))
+          :else
+            equations)))))
 
-; a model is an expression :expr (+ (* 'm x) 'c) :params ['m 'c'] :independent-vars
-; data {'a [1 2 3] 'b [1 2 3]}
-; assumes data is same size
-; assumes data is a and b
-; as
-; need to go from [1 2 3 4] and ['m 'c 'a 'b'] to {'m: 1.2}
-(defn mean-sqr-error
-  "Take a model and a dataset and produce a function which when given a set of parameters of the model
-  will compute the mean squared error of the model against data"
-  [model data]
-  ; (if (!= (count (data 'a)) (count (data 'b)))
-  (fn [param-values]
-    (let [param-map (zipmap (:params model) param-values)
-          var-map (zipmap (:vars model))]
-      (loop [error 0.0 index 0]
-        ; (println  (== (count (data 'a)) (count (data 'b))))
-        (if (>= index (count (data 'a)))
-          (/ error 2)
-          (recur (+ error
-                    (Math/pow (- (nth (data 'b) index) 
-                                 ((:as-lambda model) param-map {'x (nth (data 'a) index)}))
-                              2))
-            (inc index)))))))
 
 ; Models are expressions, which have parameters and variables
 ; Parameters are values to be optmised in eval-models
@@ -263,14 +295,19 @@
 
 (def linear-model
   {:as-expr '(= y (+ c (* m x)))
-   :as-lambda
-  (fn [param-map indep-vars]
+   :rhs-as-lambda
+   (fn [x c m]
+     (+ c (* m x)))
+   :rhs-arg-map {'x 0 'c 1 'm 2}
+   :lhs-as-lambda
+   (fn [y]
     ; (println "MODEL!!" param-map indep-vars)
-    (+ (param-map 'p1) (* (param-map 'p2) (indep-vars 'x))))
+     y)
+   :lhs-arg-map {'y 0}
 
-  :params ['c 'm]
-  :vars ['y 'x]
-  :name 'linear})
+   :params ['c 'm]
+   :vars ['y 'x]
+   :name 'linear})
 
 ; TODO ax^2 + bx + c
 (def quadratic-model
@@ -283,17 +320,14 @@
   :vars ['x]
   :name 'linear})
 
-(def models
-  [exp-model
-   power-model
-   linear-model
-   ])
+; (def models
+;   [exp-model
+;    power-model
+;    linear-model
+;    ])
 
 (def models
-  [exp-model
-   power-model
-   linear-model
-   ])
+  [linear-model])
 
 ; Example function from Herb Simon
 (defn kepler
@@ -309,7 +343,9 @@
   (+ (* x x) (* (Math/sin x) 3)))
 
 (def dt {'a [1 2 3] 'b [10 14 12]})
-(println (gen-subexprs dt 2))
+; (println (gen-subexprs dt 2))
+
+(find-expr dt models)
 
 (defn -main[])
 
