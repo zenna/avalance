@@ -41,7 +41,7 @@
   (vec (concat (subvec v 0 i)
                (subvec v (inc i)))))
 
-; cost-func 
+; Returns e.g. {:vertex [.2 .3 .4] :cost .35}
 (defn nelder-mead
   [cost-func init-point]
   "Perform parameter optimsation with nelder-mead"
@@ -56,7 +56,7 @@
            iter-num 0 translation "NOTHING"]
       ; Ordering: find worst, second worst and best point
       ; simplex-costs [{:vertex [.2 .3 .4] :cost .35} {...} ...]
-      ; Check termination conditions first
+      ; TODO: Check termination conditions first
       (if
         (or (>= iter-num 50)
             false)
