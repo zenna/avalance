@@ -82,3 +82,39 @@
         (let [ret (apply f args)]
           (swap! mem assoc args ret)
           ret)))))
+
+; Returns map of key-list to element at that place .e.g {[1 2 1] 'y, ...}
+(defn coll-to-keys
+  "Find nested keys to elements in map, ignore whose where ignore-elem is true"
+  [coll ignore-elem?]
+
+  ((fn breadth-first [coll all-keys base-keys pos]
+          ; (println "eq" equation "all-keys" all-keys "base-keys" base-keys "pos" pos)
+          (cond
+            (empty? coll)
+            all-keys
+
+            ; Don't add if we want to ignore it
+            (ignore-elem? (first coll) pos)
+            (recur (rest coll) all-keys base-keys (inc pos))
+
+            ; If it's a list add both the list AND recurse on the innards of the list
+            (list? (first coll))
+            (let [list-key {(conj base-keys pos) (first coll)}
+                  inner-keys (breadth-first (first coll) all-keys (conj base-keys pos) 0)]
+              (recur (rest coll) (merge list-key inner-keys) base-keys (inc pos)))
+
+            :else
+            (recur (rest coll)
+                   (merge all-keys {(conj base-keys pos) (first coll)})
+                   base-keys
+                   (inc pos))))
+
+  coll {} [] 0))
+
+; (deftest coll-to-keys-test
+;   (let [data '(= (+ y 2) (+ (sin (/ x 2)) 3))
+;         expected-result {[2 1] '(sin (/ x 2)), [1] '(+ y 2), [1 2] 2, [1 1] 'y,
+;                          [2 1 1 1] 'x, [2 1 1 2] 2, [2 1 1] '(/ x 2),
+;                          [2 2] 3, [2] '(+ (sin (/ x 2)) 3)}]
+;     (is (= (coll-to-keys data (fn [elem pos] (zero? pos))) expected-result))))

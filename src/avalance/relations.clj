@@ -8,9 +8,18 @@
 (use 'avalance.neldermead)
 (use 'avalance.helpers)
 
+; What's wrong with this
 
+; 1.I need a better structure for attempting things, and adding things that I can attempt without getting into
+; nested nested loops
+; 2. Keeping track of goood things
+; 3. The hard analysis of what's wrong, what extensions to make
+; 4. Learning?
+; - Smarter generation of expressions
+; - A PCFG is problematic, I want to try simple things first
 
 ; TODO
+; THE INFERENCE
 ; Handle nil!
 ; Return right data structure from gen thing
 ; Implement expression testing to prevent stupid expressions
@@ -113,12 +122,13 @@
 
 (defn make-model-lambda2
   "Make evaluable model rhs/lhs"
-  [expr vars params]
+  [expr & args]
   ; 1. find out which of the vars or params are in the subexpr
   ; TODO FIX THIS SUCH THAT PARAMETERS ALWAYS COME FIRST
+  (println "EXPR" expr "args" args)
   (let [flat-expr (if (symbol? expr) (list expr) (flatten expr))
         vars-in-expr
-          (vec (for [symb (concat vars params)
+          (vec (for [symb (reduce concat args)
                 :when (in? flat-expr symb)]
             symb))
         arg-map (zipmap vars-in-expr (range (count vars-in-expr)))]
@@ -194,13 +204,10 @@
      :var-binding var-binding}))
 
 (defn create-cost-func-for-datapoint
-  [datapoint model var-binding]
-  (fn [param-values]
-    (let [param-binding (zipmap (:params model) param-values)
-          {expr :as-expr vars :vars params :params} model
-          ; ok (println "EXPRARARA" expr)
-          lhs (nth expr 1)
-          rhs (nth expr 2)]
+  [datapoint model var-binding lhs-lambda rhs-lambda]
+  (fn [extension-values]
+    (let [extension-binding (zipmap (:ext-vars model) extension-values) 
+          {expr :as-expr vars :vars params :params} model]
           ; (println "param-binding" param-binding "\n\n datasize" (:lhs-arg-map model))
           (let [lhs-rhs
             (map
@@ -209,19 +216,27 @@
                 ; args = list of arguments for side of equation
                 ; found by 
                 (let [args (for [arg (keys (:arg-map model-side))
-                          :let [value (if (in? (:vars model) arg)
+                          :let [value (cond
+                                          ; if it's a variable, look it up in the datapoint
+                                          (in? (:vars model) arg)
                                           (datapoint (var-binding arg))
-                                          (param-binding arg))]]
+
+                                          ; if it's a parameter look it up in the param values
+                                          (in? (:params model) arg)
+                                          ((:param-values model) arg)
+
+                                          ; Otherwise it must be an extension
+                                          :else
+                                          (extension-binding arg))]]
                           value)]
                     ; (println "args!!!!" args "keys!!!" (keys (:arg-map model-side) ))
+                  ; (println ["a" args "\nms" model-side "\npb" extension-binding])
                   ; (println (if (nil? (first args)) ["a" args "\nms" model-side "\npb" param-binding "\nds" data-size "\ndata" data "\nvb" var-binding] '() ))
                   (apply (:as-lambda model-side) args)))
               
-              [(make-model-lambda lhs vars params)
-               (make-model-lambda rhs vars params)])
+              [lhs-lambda rhs-lambda])]
 
-                 error (- (first lhs-rhs) (second lhs-rhs))]
-              error))))
+      (- (first lhs-rhs) (second lhs-rhs))))))
 
 ; PERFORMANCE THIS IS SURELY VERY INEFFIICIEINT
 (defn slice-data
@@ -237,19 +252,37 @@
         expected-result {'b 6, 'a 3}]
     (is (= (slice-data data 2) expected-result))))
 
-; Returns {'v1 [1 2 3] 'v2 [3 4 5]}
+; Returns {'e0 [1 2 3] 'e1 [3 4 5]}
 (defn fit-extensions
   "Takes an equation with extensions and returns a new dataset for each extension"
-  [data equation]
+  [data equation var-binding]
+  (println "FITTING EXTENSIONS")
   (let [data-size (count (data (first (keys data))))
         ; For every data point, generate a cost function taking |extensions| args
         ; and evaluate to 0 when lhs = rhs for that datapoint
+        ; Make model lambda only needs to happen once per expression
+        ; it produces a function for each side of the equation which takes as input the variables
+        ; parameters and an extension value
+        ; the make cost function shold take a made lambda
+        ; and return a function which takes in a set of values for the extensions
+        ; takes the values for a particular datapoint
+        ; computes the left and right hand sides
+        
+        lhs (nth (:as-expr-ext equation) 1)
+        rhs (nth (:as-expr-ext equation) 2)
+        lhs-lambda (make-model-lambda lhs (:vars equation) (:params equation) (:ext-vars equation))
+        rhs-lambda (make-model-lambda rhs (:vars equation) (:params equation) (:ext-vars equation))
+        ; pbuddy (println "DADA" data-size equation lhs rhs)
+
         extension-vals (for [data-index (range data-size)
                               :let [slice (slice-data data data-index)
                                     ; Create a new cost function for each data point
-                                    cost-func (create-cost-func-for-datapoint slice equation)]]
+                                    cost-func (create-cost-func-for-datapoint slice
+                                                equation var-binding lhs-lambda rhs-lambda)]]
                           ; USE NELDER-MEAD to find PARAMETERS FOR THIS POINT
-                          (nelder-mead cost-func))]))
+                          (nelder-mead cost-func
+                                      [(vec (repeatedly (count (:ext-vars equation)) rand))]))]
+      (println extension-vals)))
 
 ; (def extension {:as-expr (= y (+ (sin (+ v x)) v2)) :params ['v1 'v2] :vars ['y 'x]
 ; Now the difference is that I am not trying to fit one v but create a new dataset
@@ -269,7 +302,7 @@
 
 ; (defn accept-equation?
 ;   "Should we continue down this path"
-;   ;. If no more tests lef then accept of course
+;   ;. If no more tests left then accept of course
 ;   ;. Otherwise we need to compute posterior
 ;   ;. Accepting means I will use this 
 ;   [score model num-tests-left]
@@ -309,51 +342,13 @@
 ; Terms: subexpr - a function of the data, which when evaluated will return a real number
         ; model   - a predicate expression containing parameters as well as variables, cannot be evaluated unless params are instantiated
         ; equation - a (set of) models with params instatiated to values and variables to (functions of) data variables
-
-(def error-fs
-  ['* '+])
-
-; Returns map of key-list to element at that place .e.g {[1 2 1] 'y, ...}
-(defn coll-to-keys
-  "Find nested keys to elements in map, ignore whose where ignore-elem is true"
-  [coll ignore-elem?]
-
-  ((fn breadth-first [coll all-keys base-keys pos]
-          ; (println "eq" equation "all-keys" all-keys "base-keys" base-keys "pos" pos)
-          (cond
-            (empty? coll)
-            all-keys
-
-            ; Don't add if we want to ignore it
-            (ignore-elem? (first coll) pos)
-            (recur (rest coll) all-keys base-keys (inc pos))
-
-            ; If it's a list add both the list AND recurse on the innards of the list
-            (list? (first coll))
-            (let [list-key {(conj base-keys pos) (first coll)}
-                  inner-keys (breadth-first (first coll) all-keys (conj base-keys pos) 0)]
-              (recur (rest coll) (merge list-key inner-keys) base-keys (inc pos)))
-
-            :else
-            (recur (rest coll)
-                   (merge all-keys {(conj base-keys pos) (first coll)})
-                   base-keys
-                   (inc pos))))
-
-  coll {} [] 0))
-
-(deftest coll-to-keys-test
-  (let [data '(= (+ y 2) (+ (sin (/ x 2)) 3))
-        expected-result {[2 1] '(sin (/ x 2)), [1] '(+ y 2), [1 2] 2, [1 1] 'y,
-                         [2 1 1 1] 'x, [2 1 1 2] 2, [2 1 1] '(/ x 2),
-                         [2 2] 3, [2] '(+ (sin (/ x 2)) 3)}]
-    (is (= (coll-to-keys data (fn [elem pos] (zero? pos))) expected-result))))
-
 ; FIXME: This can replace extension
 (defn suggest-extension
   "Suggest an extension to an equation"
-  [equation data]
-  (let [num-extensions (rand-int 3)]
+  [equation error-fs]
+  (let [num-extensions (inc (rand-int 1))
+        extension-vars (map #(symbol (str "e" %)) (range num-extensions))
+        extended-expr
         ; Repeatedly reply a modification
         (loop [modified-equation equation extension-num 0]
           (if (= num-extensions extension-num)
@@ -364,15 +359,17 @@
                   key-to-change (rand-nth (keys all-keys))
                   error-f (rand-nth error-fs)
                   value-at-key (all-keys key-to-change)
-                  ext-name (symbol (str "e" extension-num))
+                  ext-name (nth extension-vars extension-num)
                   rand-replacement (rand-nth [(list error-f value-at-key ext-name)
                                              (list error-f ext-name value-at-key)])
                   new-equation (replace-in-sublist modified-equation key-to-change rand-replacement)]
-              (recur new-equation (inc extension-num)))))))
+              (recur new-equation (inc extension-num)))))]
+
+    {:as-expr-ext extended-expr :ext-vars extension-vars}))
 
 (defn find-expr
   "Searches for an expression"
-  [data models]
+  [data models error-fs]
   (let [num-subexprs 2;(inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
         max-num-plots 20]
 
@@ -395,7 +392,7 @@
             ; Should I extend the model or not?
             (cond
               ; (accept-equation? equations scores num-tests-left)
-              true
+              false
               equation
 
               ; What's an extension like?
@@ -403,7 +400,11 @@
               ; where the params have been hardcoded in
               ; and the new params the datasets
               ; 
-              ; (extend?)
+              true
+              (let [extended-expr (suggest-extension (:as-expr model) error-fs)
+                    extended-model (merge (merge model extended-expr) {:param-values (:param-values equation)})
+                    new-data (fit-extensions subexprs-data extended-model var-binding)]
+                new-data)
               ; (loop []
               ;   (let [extension (suggest-extention equation subexprs-data)]
               ;     (map
@@ -483,6 +484,10 @@
    sin-model
    constant-model])
 
+; Error functions - all binary
+(def error-fs
+  ['* '+])
+
 ; Example function from Herb Simon
 (defn kepler
   [D]
@@ -507,7 +512,7 @@
 
 ; (println "OK" (reduce #(concat (:vars %1) (:vars %2)) okb))
 
-(find-expr data models) 
+(find-expr data models error-fs) 
 
 (defn -main[])
 
