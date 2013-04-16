@@ -236,7 +236,7 @@
               
               [lhs-lambda rhs-lambda])]
 
-      (- (first lhs-rhs) (second lhs-rhs))))))
+      (Math/pow (- (first lhs-rhs) (second lhs-rhs)) 2)))))
 
 ; PERFORMANCE THIS IS SURELY VERY INEFFIICIEINT
 (defn slice-data
@@ -281,7 +281,7 @@
                                                 equation var-binding lhs-lambda rhs-lambda)]]
                           ; USE NELDER-MEAD to find PARAMETERS FOR THIS POINT
                           (nelder-mead cost-func
-                                      [(vec (repeatedly (count (:ext-vars equation)) rand))]))]
+                                      (vec (repeatedly (count (:ext-vars equation)) rand))))]
       (println extension-vals)))
 
 ; (def extension {:as-expr (= y (+ (sin (+ v x)) v2)) :params ['v1 'v2] :vars ['y 'x]
@@ -455,7 +455,7 @@
   :name 'power-model})
 
 (def power-model
-  {:as-expr '(= y (Math/pow 'x 'n)) 
+  {:as-expr '(= y (Math/pow x n)) 
   :params ['n]
   :vars ['y 'x]
   :name 'power-model})
@@ -479,7 +479,8 @@
    :name 'constant})
 
 (def models
-  [linear-model
+  [power-model
+   linear-model
    exponent-model
    sin-model
    constant-model])
@@ -497,12 +498,16 @@
   [x]
   (+ 1.5 (* 10 x)))
 
+(defn x-squared
+  [x]
+  (+ (* x x) (Math/sin x)))
+
 (defn a-little-complex
   [x]
   (+ (* x x) (* (Math/sin x) 3)))
 
 (def dt {'a [1 2 3] 'b [10 14 12]})
-(def data (gen-data-uniform line 1 100 10))
+(def data (gen-data-uniform x-squared 1 100 10))
 (def subsexprs (gen-subexprs data 2))
 
 ; (def okb (:subexprs-data subsa))
