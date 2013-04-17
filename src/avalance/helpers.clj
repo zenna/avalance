@@ -57,10 +57,11 @@
 	[x]
 	(* x x))
 
+;FIXME NEED BETTER ACCOUNT FOR FLOATING POINT PRECISION
 ; an equality to use for floating point arithmetic
 (defn tolerant=
   [x y]
-  (< (* (x x) 0.001)))
+  (< (* (- x y) (- x y)) 0.00001))
 
 (defn in? 
   "true if seq contains elm"
@@ -129,3 +130,17 @@
                        (first ns)
                        (replace-in-sublist sublist (rest ns) x)))
     x))
+
+(defn vec-f
+    "Like merge-with but for vectors"
+  [f v1 v2]
+  (loop [index 0 merged-vec []]
+    (if (= index (count v1))
+      merged-vec
+      (recur (inc index) (conj merged-vec (f (nth v1 index) (nth v2 index)))))))
+
+; TODO TEST
+(defn vec-scalar-f
+  "scalar f (e.g. multiply division etc) of vector"
+  [f v scalar]
+  (map #(f %1 scalar) v))

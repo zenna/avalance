@@ -44,15 +44,46 @@
           (recur (+ x (/ (- max-val min-val) num-samples)) (concat xs [x]) (concat fxs [(func x)]))
         ))))
 
+; FIXME: It could be that the data covaries in wuch a way that function
 (defn expr-covaries?
-  [expr data]
-  "Does the exprs covary with the data"
-  true)
+  [expr-data data]
+  "Does the exprs covary with the data i.e. is not constant"
+  (let [data-values (first (vals expr-data))
+        test-point (first data-values)]
+        ; (println "testpoint" test-point "datavals" data-values)
+    (loop [data-values data-values does-covary true]
+      (cond (empty? data-values)
+        does-covary
 
+        (tolerant= (first data-values) test-point)
+        (recur (rest data-values) false)
+
+        :else
+        true))))
+
+; 
 (defn expr-unique?
-  [expr exprs data]
+  [expr expr-data exprs]
   "Is this exprs not already in the list of exprs"
-  true)
+  ; Check syntactic equivalence first, as less expensive
+  (cond
+    (in? (keys exprs) expr)
+    false
+
+    :else
+    (loop [exprs-loop (keys exprs)]
+      (cond
+        (empty? exprs-loop) true
+
+        ; if different
+        (not-every? true?
+          (vec-f #(tolerant= %1 %2)
+            (exprs (first exprs-loop))
+            (first (vals expr-data))))
+        (recur (rest exprs-loop))
+
+        :else
+        false))))
 
 (defn rearrange-args
   ""
@@ -89,7 +120,6 @@
      :arg-map (sort-by val < (zipmap vars-in-expr (range (count vars-in-expr))))
      :vars vars-in-expr}))
 
-
 (defn gen-subexprs
   "Generate functions of data variables"
   [data num-to-gen]
@@ -97,6 +127,7 @@
   (let [data-vars (vec (keys data))
         data-prods (map (fn [variable] {:prod variable :weight 10000.0}) data-vars)
         new-pcfg (add-data-to-pcfg data-prods compound-pcfg)
+        ; Generate exprs through sample and reject if it fails to adhere to constraints
         expr-exprs-data
           (loop [exprs {} num-left-to-gen num-to-gen]
             (let [expr (gen-expr-pcfg new-pcfg)
@@ -106,7 +137,8 @@
                 (zero? num-left-to-gen)
                 exprs
 
-                (and (expr-covaries? expr-data data) (expr-unique? expr-data exprs data))
+                ; Check that the data covaries with the data and is unique
+                (and (expr-covaries? expr-data data) (expr-unique? expr expr-data exprs))
                 (recur (merge exprs expr-data) (dec num-left-to-gen))
 
                 :else
@@ -126,7 +158,7 @@
   [expr & args]
   ; 1. find out which of the vars or params are in the subexpr
   ; TODO FIX THIS SUCH THAT PARAMETERS ALWAYS COME FIRST
-  (println "EXPR" expr "args" args)
+  ; (println "EXPR" expr "args" args)
   (let [flat-expr (if (symbol? expr) (list expr) (flatten expr))
         vars-in-expr
           (vec (for [symb (reduce concat args)
@@ -137,7 +169,6 @@
   {:as-lambda  (make-lambda-args expr vars-in-expr) :arg-map (sort-by val < arg-map)}))
 
 (def make-model-lambda (memoize make-model-lambda2))
-
 
 (defn sum-sqr-error
   "Take a model and a dataset and produce a function which when given a set of parameters of the model
@@ -198,7 +229,7 @@
         best-fit-params (nelder-mead cost-func [1.0 1.0])]
     {:model model
      :param-values (zipmap (:params model) (:vertex best-fit-params))
-     :score (:cost best-fit-params)
+     :cost (:cost best-fit-params)
      :var-binding var-binding}))
 
 (defn create-cost-func-for-datapoint
@@ -368,7 +399,7 @@
 
 (defn find-good-extensions
   "Find some good extensions"
-  [model models error-fs equation var-binding subexprs-data data]
+  [model all-models error-fs equation var-binding subexprs-data data depth]
   (loop [good-extensions [] num-tries-left 10]
     (cond
       (zero? num-tries-left)
@@ -378,16 +409,17 @@
       :else
       (let [extended-expr (suggest-extension (:as-expr model) error-fs)
             extended-model (merge model extended-expr {:param-values (:param-values equation)})
-            {extension-data :score score :score} (fit-extensions subexprs-data extended-model var-binding)]
+            {extension-data :vertex score :cost} (fit-extensions subexprs-data extended-model var-binding)]
+            (println extension-data " score " score)
 
         ; If the score deviates from zero, we couldn't fit
         ; a good extension dataset, so let's skip
-        (if (< score 0.0001)
+        (if (> score 0.0001)
             (recur good-extensions (dec num-tries-left))
 
             ; Otherwise let's see if we can make a fit the extension by recursing with
-            (let [compound-data (merge (zipmap :ext extended-expr extension-data) data subexprs-data)
-                  extension (find-expr data models error-fs)]
+            (let [compound-data (merge (zipmap (:ext-vars extended-expr) extension-data) data subexprs-data)
+                  extension (find-expr data all-models error-fs (inc depth))]
                   (println "ARE"extension)
                   (if true ;TOOD extension is good?
                   (recur (conj good-extensions extension) (dec num-tries-left))
@@ -397,7 +429,7 @@
 (defn sample-model
   "choose models, currently random"
   [sampled-models models data]
-  {:pre [(not= (count sampled-models) (count models))]}
+  {:pre [(<= (count sampled-models) (count models))]}
   (let [proposed-model (rand-nth models)]
     ; Don't repeat, don't choose one i've seen before
     (if (in? sampled-models models)
@@ -408,10 +440,13 @@
   "Should we continue down this path"
   [score model num-tests-left])
 
+; Stop if the depth get's greater than some threshold
 (defn extend?
   "Should we extend?"
-  []
-  true)
+  [depth]
+  (if (> depth 2)
+      false
+      true))
 
 (defn accept-equation?
   [equations num-tests-left]
@@ -429,14 +464,17 @@
 ; TODO- Depth control of extensions
 (defn find-expr
   "Searches for an expression"
-  [data models error-fs]
+  [data all-models error-fs depth]
   (let [num-subexprs 2;(inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
-        max-num-plots 20]
+        models (filter #(= num-subexprs (count (:vars %))) all-models)
+        max-num-plots 20
+        ok (println "RECURSING")]
 
     ; loop over (samples of) subexpression sets
     (loop [equations [] num-plots-left max-num-plots]
       (let [subexprs-subexprs-data (gen-subexprs data num-subexprs)
            {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
+           ok (println "SUBS" subexprs)
             equations
         (conj equations
         ; Loop through different models return set of
@@ -446,16 +484,19 @@
                 var-binding (bind-data-to-model subexprs-data model)
                 equation (fit-model subexprs subexprs-data model var-binding)]
                 ; 1. compile-expression ]
-                (println equation)
+                ; (println equation)
             
             ; Should I extend the model or not?
             (cond
               (accept-equation? equations num-model-tests-left)
               equation
 
-              ; Shall I attempt an extension?
-              (extend?)
-              (let [good-extensions (find-good-extensions model models error-fs equation var-binding subexprs-data data)
+              ; Shall I attempt an extension? Impose hard depth
+              (extend? depth)
+              (let [good-extensions (find-good-extensions model
+                                      all-models error-fs equation
+                                      var-binding subexprs-data
+                                      data depth)
                     good-extension-found true] ; TODO
 
                   ; If we found a good extension, incorporate into the equations, add this to the list
@@ -478,8 +519,8 @@
 
 
 ; Models are expressions, which have parameters and variables
-; Parameters are values to be optmised in eval-models
-; Whereas variables come from compounds
+; Parameters are values to be optmised
+; Whereas variables come from compounds of data
 (def exponent-model
   {:as-expr '(= y (Math/pow b x))
   :params ['b]
@@ -539,7 +580,7 @@
   (+ (* x x) (* (Math/sin x) 3)))
 
 (def dt {'a [1 2 3] 'b [10 14 12]})
-(def data (gen-data-uniform x-squared 1 100 100))
+(def data (gen-data-uniform x-squared 1 100 10))
 (def subsexprs (gen-subexprs data 2))
 
 ; (def okb (:subexprs-data subsa))
@@ -549,7 +590,7 @@
 
 ; (println "OK" (reduce #(concat (:vars %1) (:vars %2)) okb))
 
-(find-expr data models error-fs) 
+(find-expr data models error-fs 0) 
 
 (defn -main[])
 
@@ -557,7 +598,7 @@
 ;   []
 ;   ;1. Generate data 
 ;   (let [data (gen-data-uniform a-little-complex 1 100 10)]
-;         ; model-weights (subvec (vec (sort-by :score (find-expr data models))) 0 5)]
+;         ; model-weights (subvec (vec (sort-by :cost (find-expr data models))) 0 5)]
 ;     data))
 
 ; (require 'avalance.relations)

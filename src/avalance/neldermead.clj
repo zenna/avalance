@@ -2,6 +2,8 @@
 ; (use 'avalance.relations)
 
 (use 'clojure.math.numeric-tower)
+(use 'avalance.helpers)
+
 
 ;todo
 ; termination tests - start with just number of iterations
@@ -20,20 +22,6 @@
       simplex
       (recur (conj simplex (update-in point [dim] #(+ %1 step-size)))
         (inc dim)))))
-
-(defn vec-f
-    "Like merge-with but for vectors"
-  [f v1 v2]
-  (loop [index 0 merged-vec []]
-    (if (= index (count v1))
-      merged-vec
-      (recur (inc index) (conj merged-vec (f (nth v1 index) (nth v2 index)))))))
-
-; TODO TEST
-(defn vec-scalar-f
-  "scalar f (e.g. multiply division etc) of vector"
-  [f v scalar]
-  (map #(f %1 scalar) v))
 
 (defn remove-nth
   "Returns vector with nth value removed"
