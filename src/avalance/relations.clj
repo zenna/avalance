@@ -28,6 +28,7 @@
 ; decide accept criterion
 ; write code to
 ; choose sub expression of 
+; AVOID TRYING TO FIT PARAMS WHEN THERE ARE NONE
 
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform
@@ -305,19 +306,7 @@
 ; 3. But first update the model by insantating the parameters and adding in the vs
 ; 4. Then I need to abstract out details of mean-sqr-error and make another function which
 
-; Selection of models should be based on the data, and the available models
-(defn sample-model
-  "choose models"
-  [sampled-models models data])
 
-(defn continue?
-  "Should we continue down this path"
-  [score model num-tests-left])
-
-(defn extend?
-  "Should we extend?"
-  []
-  true)
 
 ; (defn accept-equation?
 ;   "Should we continue down this path"
@@ -337,17 +326,6 @@
   {:pre [(= (count (keys data)) (count (:vars model)))]}
   ; (println "DATA" data "MODEL" model)
   (zipmap (:vars model) (keys data)))
-
-(defn replace-in-list [coll n x]
-  (concat (take n coll) (list x) (nthnext coll (inc n))))
-
-(defn replace-in-sublist [coll ns x]
-  (if (seq ns)
-    (let [sublist (nth coll (first ns))]
-      (replace-in-list coll
-                       (first ns)
-                       (replace-in-sublist sublist (rest ns) x)))
-    x))
 
 ; The output of this function should be a list of size >= 1 of models with parameters instantiated
 
@@ -386,9 +364,11 @@
 
     {:as-expr-ext extended-expr :ext-vars extension-vars}))
 
+(declare find-expr)
+
 (defn find-good-extensions
   "Find some good extensions"
-  [model error-fs equation var-binding subexprs-data]
+  [model models error-fs equation var-binding subexprs-data data]
   (loop [good-extensions [] num-tries-left 10]
     (cond
       (zero? num-tries-left)
@@ -398,7 +378,7 @@
       :else
       (let [extended-expr (suggest-extension (:as-expr model) error-fs)
             extended-model (merge model extended-expr {:param-values (:param-values equation)})
-            {:extension-data :score score :score} (fit-extensions subexprs-data extended-model var-binding)]
+            {extension-data :score score :score} (fit-extensions subexprs-data extended-model var-binding)]
 
         ; If the score deviates from zero, we couldn't fit
         ; a good extension dataset, so let's skip
@@ -407,11 +387,46 @@
 
             ; Otherwise let's see if we can make a fit the extension by recursing with
             (let [compound-data (merge (zipmap :ext extended-expr extension-data) data subexprs-data)
-                  extension (find-expr compound-data models error-fs)]
-                  (if true) ;TOOD extension is good?
+                  extension (find-expr data models error-fs)]
+                  (println "ARE"extension)
+                  (if true ;TOOD extension is good?
                   (recur (conj good-extensions extension) (dec num-tries-left))
-                  (recur good-extensions (dec num-tries-left))))))))
+                  (recur good-extensions (dec num-tries-left)))))))))
 
+; Selection of models should be based on the data, and the available models
+(defn sample-model
+  "choose models, currently random"
+  [sampled-models models data]
+  {:pre [(not= (count sampled-models) (count models))]}
+  (let [proposed-model (rand-nth models)]
+    ; Don't repeat, don't choose one i've seen before
+    (if (in? sampled-models models)
+        (recur sampled-models models data)
+        proposed-model)))
+
+(defn continue?
+  "Should we continue down this path"
+  [score model num-tests-left])
+
+(defn extend?
+  "Should we extend?"
+  []
+  true)
+
+(defn accept-equation?
+  [equations num-tests-left]
+  (if (zero? num-tests-left)
+      true
+      false))
+
+(defn try-more-subexprs?
+  [equations num-plots-left]
+  (cond
+    (zero? num-plots-left) false
+    :else ; TODO WHEN ELSE SHOULD I STOP TRYING SUBEXPRS
+      true))
+
+; TODO- Depth control of extensions
 (defn find-expr
   "Searches for an expression"
   [data models error-fs]
@@ -424,10 +439,9 @@
            {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
             equations
         (conj equations
-        ; Loop through different models
-        (loop [sampled-models []
-               equations []]
-          (let [model (first models)
+        ; Loop through different models return set of
+        (loop [sampled-models [] equations [] num-model-tests-left (count models)]
+          (let [model (sample-model sampled-models models subexprs-data)
                 sampled-models (conj sampled-models model)
                 var-binding (bind-data-to-model subexprs-data model)
                 equation (fit-model subexprs subexprs-data model var-binding)]
@@ -436,49 +450,27 @@
             
             ; Should I extend the model or not?
             (cond
-              (accept-equation? equations scores num-tests-left)
-              false
+              (accept-equation? equations num-model-tests-left)
               equation
 
               ; Shall I attempt an extension?
               (extend?)
-              (let [good-extensions
-                    (loop [good-extensions [] num-tries-left 10]
-                      (cond
-                        (zero? num-tries-left)
-                        good-extensions
+              (let [good-extensions (find-good-extensions model models error-fs equation var-binding subexprs-data data)
+                    good-extension-found true] ; TODO
 
-                        ; Let's try to find an extension
-                        :else
-                        (let [extended-expr (suggest-extension (:as-expr model) error-fs)
-                              extended-model (merge model extended-expr {:param-values (:param-values equation)})
-                              {:extension-data :score score :score} (fit-extensions subexprs-data extended-model var-binding)]
+                  ; If we found a good extension, incorporate into the equations, add this to the list
+                  ; and then try a new model
+                  (if true;(good extension-found)
+                      equations;(incorporate-into-model-and-recurse) ; TODO
+                      (recur sampled-models equations (dec num-model-tests-left))))
 
-                          ; If the score deviates from zero, we couldn't fit
-                          ; a good extension dataset, so let's skip
-                          (if (< score 0.0001)
-                              (recur good-extensions (dec num-tries-left))
-
-                              ; Otherwise let's see if we can make a fit the extension by recursing with
-                              (let [compound-data (merge (zipmap :ext extended-expr extension-data) data subexprs-data)
-                                    extension (find-expr compound-data models error-fs)]
-                                    (if true) ;TOOD extension is good?
-                                    (recur (conj good-extensions extension) (dec num-tries-left))
-                                    (recur good-extensions (dec num-tries-left)))))))
-
-                      good-extension-found true]
-
-                  (if (good extension-found))
-                      (incorporate-into-model-and-recurse)
-                      (recur sampled-models equations))
-
-
+              ; If I am not stopping nor extending I should try a new model
               :else
-              (recur sampled-models equations)))))]
+              (recur sampled-models equations (dec num-model-tests-left))))))]
         
+        ; Should I try more subexprs
         (cond
-          false
-          ; (try-more-subexprs? equations)
+          (try-more-subexprs? equations num-plots-left)
           (recur equations (dec num-plots-left))
 
           :else
@@ -489,16 +481,16 @@
 ; Parameters are values to be optmised in eval-models
 ; Whereas variables come from compounds
 (def exponent-model
-  {:as-expr '(= y (Math/pow 'b 'x))
+  {:as-expr '(= y (Math/pow b x))
   :params ['b]
   :vars ['y 'x]
-  :name 'power-model})
+  :name 'exponent})
 
 (def power-model
   {:as-expr '(= y (Math/pow x n)) 
   :params ['n]
   :vars ['y 'x]
-  :name 'power-model})
+  :name 'power})
 
 (def linear-model
   {:as-expr '(= y (+ c (* m x)))
@@ -527,7 +519,7 @@
 
 ; Error functions - all binary
 (def error-fs
-  ['+])
+  ['+ '*])
 
 ; Example function from Herb Simon
 (defn kepler

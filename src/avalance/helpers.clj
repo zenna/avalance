@@ -118,3 +118,14 @@
 ;                          [2 1 1 1] 'x, [2 1 1 2] 2, [2 1 1] '(/ x 2),
 ;                          [2 2] 3, [2] '(+ (sin (/ x 2)) 3)}]
 ;     (is (= (coll-to-keys data (fn [elem pos] (zero? pos))) expected-result))))
+
+(defn replace-in-list [coll n x]
+  (concat (take n coll) (list x) (nthnext coll (inc n))))
+
+(defn replace-in-sublist [coll ns x]
+  (if (seq ns)
+    (let [sublist (nth coll (first ns))]
+      (replace-in-list coll
+                       (first ns)
+                       (replace-in-sublist sublist (rest ns) x)))
+    x))
