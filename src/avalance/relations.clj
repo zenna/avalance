@@ -410,7 +410,7 @@
       (let [extended-expr (suggest-extension (:as-expr model) error-fs)
             extended-model (merge model extended-expr {:param-values (:param-values equation)})
             {extension-data :vertex score :cost} (fit-extensions subexprs-data extended-model var-binding)]
-            (println extension-data " score " score)
+            ; (println extension-data " score " score)
 
         ; If the score deviates from zero, we couldn't fit
         ; a good extension dataset, so let's skip
@@ -419,7 +419,8 @@
 
             ; Otherwise let's see if we can make a fit the extension by recursing with
             (let [compound-data (merge (zipmap (:ext-vars extended-expr) extension-data) data subexprs-data)
-                  extension (find-expr data all-models error-fs (inc depth))]
+                  ok (println "ABOUT TO RECURSE WITH EXTENSION" (:as-expr-ext extended-expr))
+                  extension (find-expr compound-data all-models error-fs (inc depth))]
                   (println "ARE"extension)
                   (if true ;TOOD extension is good?
                   (recur (conj good-extensions extension) (dec num-tries-left))
@@ -443,8 +444,9 @@
 ; Stop if the depth get's greater than some threshold
 (defn extend?
   "Should we extend?"
-  [depth]
-  (if (> depth 2)
+  [depth equation]
+  (if (or (> depth 1)
+          (> (:cost equation) 100)) ;TODO- ARBITRARY NUMBER HERE
       false
       true))
 
@@ -465,16 +467,19 @@
 (defn find-expr
   "Searches for an expression"
   [data all-models error-fs depth]
-  (let [num-subexprs 2;(inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
+  (let [num-subexprs (inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
+        
+        ; Filter out models of wrong number of parameters
         models (filter #(= num-subexprs (count (:vars %))) all-models)
-        max-num-plots 20
-        ok (println "RECURSING")]
+        max-num-plots 5
+        prefixprint (apply str (repeat depth "--"))
+        ok (println prefixprint "RECURSING WITH DATA" (keys data))]
 
     ; loop over (samples of) subexpression sets
     (loop [equations [] num-plots-left max-num-plots]
       (let [subexprs-subexprs-data (gen-subexprs data num-subexprs)
            {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
-           ok (println "SUBS" subexprs)
+           ok (println "SUBSEXPRESSIONS" (keys subexprs-data))
             equations
         (conj equations
         ; Loop through different models return set of
@@ -482,7 +487,8 @@
           (let [model (sample-model sampled-models models subexprs-data)
                 sampled-models (conj sampled-models model)
                 var-binding (bind-data-to-model subexprs-data model)
-                equation (fit-model subexprs subexprs-data model var-binding)]
+                equation (fit-model subexprs subexprs-data model var-binding)
+                ok (println "TRIED MODEL" equation)]
                 ; 1. compile-expression ]
                 ; (println equation)
             
@@ -492,7 +498,7 @@
               equation
 
               ; Shall I attempt an extension? Impose hard depth
-              (extend? depth)
+              (extend? depth equation)
               (let [good-extensions (find-good-extensions model
                                       all-models error-fs equation
                                       var-binding subexprs-data
