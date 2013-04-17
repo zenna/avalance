@@ -188,9 +188,6 @@
             (recur (+ accum-error (Math/pow error 2))
                    (inc index))))))))
 
-(defn compile-equation
-  "Create an equation from a model and some ")
-
 ; Returns [what is love! baby dont hurt me]
 ; TODO generalise this to n params
 (defn fit-model
@@ -282,8 +279,25 @@
                           ; USE NELDER-MEAD to find PARAMETERS FOR THIS POINT
                           (nelder-mead cost-func
                                       (vec (repeatedly (count (:ext-vars equation)) rand))))]
-      (println extension-vals)))
+      (reduce (fn [all r]
+                  (let [all-v (:vertex all)
+                        r-v (:vertex r)
+                        all-s (:cost all)
+                        r-s (:cost r)]
+                  {:vertex
+                  (for [ind (range (count all-v))
+                        :let [i (nth all-v ind)
+                              j (nth r-v ind)]]
 
+                    (if (vector? i)
+                        (conj i j)
+                        [i j]))
+                  :cost (+ all-s r-s)}))
+
+        extension-vals)))
+
+; [1 2] [1 2] -> [[1 1] [2 2]]
+; [[1 1] [2 2]] -> [1 2]
 ; (def extension {:as-expr (= y (+ (sin (+ v x)) v2)) :params ['v1 'v2] :vars ['y 'x]
 ; Now the difference is that I am not trying to fit one v but create a new dataset
 ; 1. I need to create a new rhs-lambda lhs-lambda
@@ -299,6 +313,11 @@
 (defn continue?
   "Should we continue down this path"
   [score model num-tests-left])
+
+(defn extend?
+  "Should we extend?"
+  []
+  true)
 
 ; (defn accept-equation?
 ;   "Should we continue down this path"
@@ -346,7 +365,7 @@
 (defn suggest-extension
   "Suggest an extension to an equation"
   [equation error-fs]
-  (let [num-extensions (inc (rand-int 1))
+  (let [num-extensions (inc (rand-int 2))
         extension-vars (map #(symbol (str "e" %)) (range num-extensions))
         extended-expr
         ; Repeatedly reply a modification
@@ -366,6 +385,32 @@
               (recur new-equation (inc extension-num)))))]
 
     {:as-expr-ext extended-expr :ext-vars extension-vars}))
+
+(defn find-good-extensions
+  "Find some good extensions"
+  [model error-fs equation var-binding subexprs-data]
+  (loop [good-extensions [] num-tries-left 10]
+    (cond
+      (zero? num-tries-left)
+      good-extensions
+
+      ; Let's try to find an extension
+      :else
+      (let [extended-expr (suggest-extension (:as-expr model) error-fs)
+            extended-model (merge model extended-expr {:param-values (:param-values equation)})
+            {:extension-data :score score :score} (fit-extensions subexprs-data extended-model var-binding)]
+
+        ; If the score deviates from zero, we couldn't fit
+        ; a good extension dataset, so let's skip
+        (if (< score 0.0001)
+            (recur good-extensions (dec num-tries-left))
+
+            ; Otherwise let's see if we can make a fit the extension by recursing with
+            (let [compound-data (merge (zipmap :ext extended-expr extension-data) data subexprs-data)
+                  extension (find-expr compound-data models error-fs)]
+                  (if true) ;TOOD extension is good?
+                  (recur (conj good-extensions extension) (dec num-tries-left))
+                  (recur good-extensions (dec num-tries-left))))))))
 
 (defn find-expr
   "Searches for an expression"
@@ -391,47 +436,42 @@
             
             ; Should I extend the model or not?
             (cond
-              ; (accept-equation? equations scores num-tests-left)
+              (accept-equation? equations scores num-tests-left)
               false
               equation
 
-              ; What's an extension like?
-              ; an extended equation is one where the value (= y (+ (sin (+ v x)) v2))
-              ; where the params have been hardcoded in
-              ; and the new params the datasets
-              ; 
-              true
-              (let [extended-expr (suggest-extension (:as-expr model) error-fs)
-                    extended-model (merge (merge model extended-expr) {:param-values (:param-values equation)})
-                    new-data (fit-extensions subexprs-data extended-model var-binding)]
-                new-data)
-              ; (loop []
-              ;   (let [extension (suggest-extention equation subexprs-data)]
-              ;     (map
-              ;       (fn [] )
-              ;       {:vars extension})
+              ; Shall I attempt an extension?
+              (extend?)
+              (let [good-extensions
+                    (loop [good-extensions [] num-tries-left 10]
+                      (cond
+                        (zero? num-tries-left)
+                        good-extensions
 
-              ; ; e.g. extension (= y (+ (sin (+ v x)) v2)) ;
-              ; ; Like mean sqr error except that it will do it for each datapoint
-              ; What if there's more than one value?  Assume unique
-              ; ; so somehow I find 'v1 [1 2 3] 'v2 [2 3 4]
+                        ; Let's try to find an extension
+                        :else
+                        (let [extended-expr (suggest-extension (:as-expr model) error-fs)
+                              extended-model (merge model extended-expr {:param-values (:param-values equation)})
+                              {:extension-data :score score :score} (fit-extensions subexprs-data extended-model var-binding)]
 
-              ; try to find any variables in extension
-              ; for all variables try to construct new dataset
-              ; if possible recurse with new-dataset
-              ; (find-expr subexprs-data models)
-              ; ; select part of the model to extend
-              ; ; select a binary extension
-              ; ; select position of part to extend in binary extension
-              ; ; modify the equation
-              ; ; e.g. y=sin(x) +c -> y=sin(v*x)+c
-              ; ; try to find new dataset v
-              ; ; if I can:
-              ;   ; then recurse, constraining data to have to include v
-              ;   ; otherwise abandon this modification
-              ; (extend the model the model)
-              ; If I can't find a good extension then I might one to try a new model, or a I might want to just accept this model
-              ; ; 
+                          ; If the score deviates from zero, we couldn't fit
+                          ; a good extension dataset, so let's skip
+                          (if (< score 0.0001)
+                              (recur good-extensions (dec num-tries-left))
+
+                              ; Otherwise let's see if we can make a fit the extension by recursing with
+                              (let [compound-data (merge (zipmap :ext extended-expr extension-data) data subexprs-data)
+                                    extension (find-expr compound-data models error-fs)]
+                                    (if true) ;TOOD extension is good?
+                                    (recur (conj good-extensions extension) (dec num-tries-left))
+                                    (recur good-extensions (dec num-tries-left)))))))
+
+                      good-extension-found true]
+
+                  (if (good extension-found))
+                      (incorporate-into-model-and-recurse)
+                      (recur sampled-models equations))
+
 
               :else
               (recur sampled-models equations)))))]
@@ -487,7 +527,7 @@
 
 ; Error functions - all binary
 (def error-fs
-  ['* '+])
+  ['+])
 
 ; Example function from Herb Simon
 (defn kepler
@@ -507,7 +547,7 @@
   (+ (* x x) (* (Math/sin x) 3)))
 
 (def dt {'a [1 2 3] 'b [10 14 12]})
-(def data (gen-data-uniform x-squared 1 100 10))
+(def data (gen-data-uniform x-squared 1 100 100))
 (def subsexprs (gen-subexprs data 2))
 
 ; (def okb (:subexprs-data subsa))
