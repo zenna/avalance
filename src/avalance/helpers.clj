@@ -144,3 +144,10 @@
   "scalar f (e.g. multiply division etc) of vector"
   [f v scalar]
   (map #(f %1 scalar) v))
+
+(defn empty-to-nil
+  "If it's empty return nil, otherwise return the collection"
+  [coll]
+  (if (empty? coll)
+      nil
+      coll))

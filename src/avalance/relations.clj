@@ -12,20 +12,29 @@
         ; model   - a predicate expression containing parameters as well as variables, cannot be evaluated unless params are instantiated
         ; equation - a (set of) models with params instatiated to values and variables to (functions of) data variables
 
-; What's wrong with this
-
-; 1.I need a better structure for attempting things, and adding things that I can attempt without getting into
-; nested nested loops
-; 2. Keeping track of goood things
-; 3. The hard analysis of what's wrong, what extensions to make
-; 4. Learning?
-; - Smarter generation of expressions
-; - A PCFG is problematic, I want to try simple things first
-
 ; TODO
 ; Handle nil!
-; Handle NAN Cost function some times NAN
-; AVOID TRYING TO FIT PARAMS WHEN THERE ARE NONE
+; Figure out what is causing NaN
+; Do not repeat subexprs
+; Do not repeat model
+
+; Current Problems
+; I am repeating tests which provide no added information
+; I am making too many arbitrary decisions
+; - When to decide to continue searching for an extension
+; - When to decide to continue/ searching for an equation
+; - When to think a model is good enough to pursue
+
+; My recognition is based on trying a bunch of things, I need something more principled
+
+; Adding a new procedure involves reforming the code drastically
+; A PCFG is problematic, I want to try simple things first
+
+; Before I tear everything down I should make this do what it intended to do
+; 1. Stop doing completely stupid things
+; 2. Get data back out from inner loops
+; 3. Stop when I think I have a solution
+; 4. Make better decisions - simple one 
 
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform
@@ -138,11 +147,12 @@
   use expr-constraints to restrict generated expressions
   through rejection sampling (hence must be relatively easily
   satisfiable)"
-  [data num-to-gen expr-constraints?]
+  [data num-to-gen expr-constraints? seen-subexprs]
 
   (let [data-vars (vec (keys data))
         data-prods (map (fn [variable] {:prod variable :weight 10000.0}) data-vars)
         new-pcfg (add-data-to-pcfg data-prods compound-pcfg)
+        ; ok (println "GENERATING EXPRESSIONS" num-to-gen)
         ; Generate exprs through sample and reject if it fails to adhere to constraints
         expr-exprs-data
           (loop [exprs {} num-left-to-gen num-to-gen]
@@ -156,20 +166,24 @@
                 ; Check that the data covaries with the data and is unique
                 (and (expr-covaries? expr-data data)
                      (expr-unique? expr expr-data exprs)
-                     (expr-constraints? expr (keys exprs)))
+                     (expr-constraints? expr (if-let [a (keys exprs)] a '())))
                 (recur (merge exprs expr-data) (dec num-left-to-gen))
 
                 :else
                 (recur exprs num-left-to-gen))))]
-    
-    ; First generate expressions now package it up nicely
-    {:subexprs
 
-     ; PERFORMANCE: MEMOIZE build-expr-metadata
-     (map #(build-expr-metadata %1 data-vars) (keys expr-exprs-data))
+    ; (println "VARS" data-vars "A" seen-subexprs "B" (keys expr-exprs-data))
 
-     :subexprs-data
-     expr-exprs-data}))
+    ; Try again if I generated something I've already seen
+    (if (in? seen-subexprs (keys expr-exprs-data))
+        (recur data num-to-gen expr-constraints? seen-subexprs)
+        ; Otherwise package it up nicely
+        {:subexprs
+         ; PERFORMANCE: MEMOIZE build-expr-metadata
+         (map #(build-expr-metadata %1 data-vars) (keys expr-exprs-data))
+
+         :subexprs-data
+         expr-exprs-data})))
 
 (defn sum-sqr-error
   "Take a model and a dataset and produce a function which when given a set of 
@@ -219,7 +233,6 @@
   [data model var-binding]
   (let [cost-func (sum-sqr-error model data var-binding)
         num-params (count (:params model))
-        ok (println "PARAAAAMS" num-params (vec (repeatedly num-params rand)))
         best-fit-params (nelder-mead cost-func (vec (repeatedly num-params rand)))]
     {:model model
      :param-values (zipmap (:params model) (:vertex best-fit-params))
@@ -346,6 +359,11 @@
 
     {:as-expr-ext extended-expr :ext-vars extension-vars}))
 
+
+; RECURSING WITH DATA ((Math/cos b) b a e1 e0)
+; GENERATING EXPRESSIONS 2
+; TESTING CONSTRAINTS MOFO e1 () true
+; TESTING CONSTRAINTS MOFO (- b e1) (e1) true
 (defn make-expr-constraints
   [exprs-constraints]
   (fn [current-expr gend-exprs]
@@ -355,17 +373,27 @@
     (let [new-gend-exprs (map #(if (symbol? %)
                                     (list %)
                                     %)
-                            gend-exprs)]
+                            gend-exprs)
+          outcome
       (if
         ; is it true that each constraint exists in the gend exprs
         (every? (fn [c] (some #(in? %1 c) new-gend-exprs)) exprs-constraints)
         true
-        (if
-          ; if its 
-          (and (in? exprs-constraints current-expr)
-               (not-any? #(in? %1 current-expr) new-gend-exprs))
-          true
-          false)))))
+        ; Otherwise is it true that the proposed expression contains
+        ; any of the constraint expressions
+        ; And that not all of these expressions are already in gend
+        (if-let [constraints-in-current
+                 ; Again must handle case proposed expression may be symbol or list
+                 (empty-to-nil (filter  (fn [constraint]
+                                          (if (symbol? current-expr)
+                                              (= constraint current-expr)
+                                              (in? current-expr constraint)))
+                                        exprs-constraints))]
+          (not-every? #(in? gend-exprs %1) constraints-in-current)
+          false))]
+          ; ok (println "TESTING CONSTRAINTS MOFO" current-expr gend-exprs outcome)]
+      
+      outcome)))
 
 (declare find-expr)
 
@@ -392,9 +420,10 @@
             ; Otherwise let's see if we can make a fit the extension by recursing with
             (let [expr-constraints (make-expr-constraints (:ext-vars extended-expr)) 
                   compound-data (merge (zipmap (:ext-vars extended-expr) extension-data) data subexprs-data)
-                  ok (println "ABOUT TO RECURSE WITH EXTENSION" (:as-expr-ext extended-expr))
+                  prefixprint (apply str (repeat depth "  "))
+                  ok (println prefixprint "ABOUT TO RECURSE WITH EXTENSION" (:as-expr-ext extended-expr))
                   extension (find-expr compound-data all-models error-fs (inc depth) expr-constraints)]
-                  (println "ARE"extension)
+                  ; (println "ARE"extension)
                   (if true ;TOOD extension is good?
                   (recur (conj good-extensions extension) (dec num-tries-left))
                   (recur good-extensions (dec num-tries-left)))))))))
@@ -406,7 +435,8 @@
   {:pre [(<= (count sampled-models) (count models))]}
   (let [proposed-model (rand-nth models)]
     ; Don't repeat, don't choose one i've seen before
-    (if (in? sampled-models models)
+    ; (println "sampled-models" sampled-models)
+    (if (in? sampled-models proposed-model)
         (recur sampled-models models data)
         proposed-model)))
 
@@ -418,16 +448,20 @@
 (defn extend?
   "Should we extend?"
   [depth equation]
-  (if (or (> depth 1)
-          (> (:cost equation) 100)) ;TODO- ARBITRARY NUMBER HERE
-      false
-      true))
-
-(defn accept-equation?
-  [equations num-tests-left]
-  (if (zero? num-tests-left)
+  (if (and (number? (:cost equation)) ;TODO: This is because we sometimes get NaNs 
+          (< depth 1)
+          (< (:cost equation) 100)) ;TODO- ARBITRARY NUMBER HERE
       true
       false))
+
+(defn accept-equation?
+  [equations num-tests-left models sampled-models]
+  (cond
+    (zero? num-tests-left) true
+
+    (= (count sampled-models) (count models)) true
+
+    :else false))
 
 (defn try-more-subexprs?
   [equations num-plots-left]
@@ -441,16 +475,16 @@
   "Searches for an expression"
   [data all-models error-fs depth expr-constraints]
   (let [num-subexprs (inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
-        
         ; Filter out models of wrong number of parameters
         models (filter #(= num-subexprs (count (:vars %))) all-models)
         max-num-plots 5
-        prefixprint (apply str (repeat depth "--"))
-        ok (println prefixprint "RECURSING WITH DATA" (keys data))]
+        prefixprint (apply str (repeat depth "  "))
+        ok (println "\n" prefixprint "RECURSING WITH DATA" (keys data))]
 
     ; loop over (samples of) subexpression sets
-    (loop [equations [] num-plots-left max-num-plots]
-      (let [subexprs-subexprs-data (gen-subexprs data num-subexprs expr-constraints)
+    (loop [equations [] num-plots-left max-num-plots seen-subexprs []]
+      ;1. Force myself to make better plo 
+      (let [subexprs-subexprs-data (gen-subexprs data num-subexprs expr-constraints seen-subexprs)
            {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
            ok (println prefixprint "SUBEXPRESSIONS:" (keys subexprs-data))
             equations
@@ -461,13 +495,13 @@
                 sampled-models (conj sampled-models model)
                 var-binding (bind-data-to-model subexprs-data model)
                 equation (fit-model subexprs-data model var-binding)
-                ok (println prefixprint "TRIED MODEL" equation)]
+                ok (println prefixprint "TRIED MODEL" (vals (:model equation)) (:cost equation))]
                 ; 1. compile-expression ]
                 ; (println equation)
             
             ; Should I extend the model or not?
             (cond
-              (accept-equation? equations num-model-tests-left)
+              (accept-equation? equations num-model-tests-left models sampled-models)
               equation
 
               ; Shall I attempt an extension? Impose hard depth
@@ -491,7 +525,7 @@
         ; Should I try more subexprs
         (cond
           (try-more-subexprs? equations num-plots-left)
-          (recur equations (dec num-plots-left))
+          (recur equations (dec num-plots-left) (conj seen-subexprs (keys subexprs-data)))
 
           :else
             equations)))))
