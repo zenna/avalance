@@ -33,6 +33,10 @@
 (defn nelder-mead
   [cost-func init-point]
   "Perform parameter optimsation with nelder-mead"
+  ; Don't bother optimising if there are no parameters
+  (cond (empty? init-point) {:vertex [] :cost (cost-func [])}
+
+  :else
   (let [step-size 1
         ;nelder-mead parameters
         alpha 1.0
@@ -141,7 +145,7 @@
                   (remove-nth simplex-costs worst-index))
                 (nth simplex-costs worst-index))
                 (inc iter-num)
-                "SHRANK")))))))
+                "SHRANK"))))))))
 
   ; (defn model-to-cost-func)
 

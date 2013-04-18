@@ -219,8 +219,8 @@
   [data model var-binding]
   (let [cost-func (sum-sqr-error model data var-binding)
         num-params (count (:params model))
-        ok (println "PARAAAAMS" num-params)
-        best-fit-params (nelder-mead cost-func [1.0 1.0])];(vec (repeatedly num-params rand)))]
+        ok (println "PARAAAAMS" num-params (vec (repeatedly num-params rand)))
+        best-fit-params (nelder-mead cost-func (vec (repeatedly num-params rand)))]
     {:model model
      :param-values (zipmap (:params model) (:vertex best-fit-params))
      :cost (:cost best-fit-params)
