@@ -121,8 +121,11 @@
      :vars vars-in-expr}))
 
 (defn gen-subexprs
-  "Generate functions of data variables"
-  [data num-to-gen]
+  "Generate functions of data variables,
+  use expr-constraints to restrict generated expressions
+  through rejection sampling (hence must be relatively easily
+  satisfiable)"
+  [data num-to-gen expr-constraints?]
 
   (let [data-vars (vec (keys data))
         data-prods (map (fn [variable] {:prod variable :weight 10000.0}) data-vars)
@@ -138,7 +141,9 @@
                 exprs
 
                 ; Check that the data covaries with the data and is unique
-                (and (expr-covaries? expr-data data) (expr-unique? expr expr-data exprs))
+                (and (expr-covaries? expr-data data)
+                     (expr-unique? expr expr-data exprs)
+                     (expr-constraints? expr (keys exprs)))
                 (recur (merge exprs expr-data) (dec num-left-to-gen))
 
                 :else
@@ -395,6 +400,27 @@
 
     {:as-expr-ext extended-expr :ext-vars extension-vars}))
 
+(defn make-expr-constraints
+  [exprs-constraints]
+  (fn [current-expr gend-exprs]
+    ; We transformed the generated expressions to 
+    ; account for the fact that single symbols will not be lists
+    ; a bit of a hack
+    (let [new-gend-exprs (map #(if (symbol? %)
+                                    (list %)
+                                    %)
+                            gend-exprs)]
+      (if
+        ; is it true that each constraint exists in the gend exprs
+        (every? (fn [c] (some #(in? %1 c) new-gend-exprs)) exprs-constraints)
+        true
+        (if
+          ; if its 
+          (and (in? exprs-constraints current-expr)
+               (not-any? #(in? %1 current-expr) new-gend-exprs))
+          true
+          false)))))
+
 (declare find-expr)
 
 (defn find-good-extensions
@@ -418,9 +444,10 @@
             (recur good-extensions (dec num-tries-left))
 
             ; Otherwise let's see if we can make a fit the extension by recursing with
-            (let [compound-data (merge (zipmap (:ext-vars extended-expr) extension-data) data subexprs-data)
+            (let [expr-constraints (make-expr-constraints (:ext-vars extended-expr)) 
+                  compound-data (merge (zipmap (:ext-vars extended-expr) extension-data) data subexprs-data)
                   ok (println "ABOUT TO RECURSE WITH EXTENSION" (:as-expr-ext extended-expr))
-                  extension (find-expr compound-data all-models error-fs (inc depth))]
+                  extension (find-expr compound-data all-models error-fs (inc depth) expr-constraints)]
                   (println "ARE"extension)
                   (if true ;TOOD extension is good?
                   (recur (conj good-extensions extension) (dec num-tries-left))
@@ -466,7 +493,7 @@
 ; TODO- Depth control of extensions
 (defn find-expr
   "Searches for an expression"
-  [data all-models error-fs depth]
+  [data all-models error-fs depth expr-constraints]
   (let [num-subexprs (inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
         
         ; Filter out models of wrong number of parameters
@@ -477,7 +504,7 @@
 
     ; loop over (samples of) subexpression sets
     (loop [equations [] num-plots-left max-num-plots]
-      (let [subexprs-subexprs-data (gen-subexprs data num-subexprs)
+      (let [subexprs-subexprs-data (gen-subexprs data num-subexprs expr-constraints)
            {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
            ok (println "SUBSEXPRESSIONS" (keys subexprs-data))
             equations
@@ -522,7 +549,6 @@
 
           :else
             equations)))))
-
 
 ; Models are expressions, which have parameters and variables
 ; Parameters are values to be optmised
@@ -587,7 +613,7 @@
 
 (def dt {'a [1 2 3] 'b [10 14 12]})
 (def data (gen-data-uniform x-squared 1 100 10))
-(def subsexprs (gen-subexprs data 2))
+; (def subsexprs (gen-subexprs data 2))
 
 ; (def okb (:subexprs-data subsa))
 ; (println "C" (bind-data-to-model okb linear-model))
@@ -596,7 +622,7 @@
 
 ; (println "OK" (reduce #(concat (:vars %1) (:vars %2)) okb))
 
-(find-expr data models error-fs 0) 
+(find-expr data models error-fs 0 (fn [x y] true)) 
 
 (defn -main[])
 

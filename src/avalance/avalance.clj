@@ -27,19 +27,14 @@
     (filter (fn [x] (= (f x) max-val)) list)))
 
 (defn sum
-  [list]
-  (reduce + list))
+  [coll]
+  (reduce + coll))
 
 (defn rand-bool
   "Return uniform over true,false"
   (= (rand-int 2) 1))
 
-(defn rand-choice
-  "Choice element from list"
-  [list]
-  (nth list (rand-int (- (count list) 1))))
-
-(defn rand-choice-weighted
+(defn rand-nth-categorical
   "Choice element from list"
   [list weights]
   (nth list (rand-int (- (count list) 1))))
@@ -80,7 +75,7 @@
   [cost-func, init-sol, transforms, depth]
   (let make-step (fn [sol-current steps]
     ; Apply 5 random transformations to solution, and find lowest cost
-    (let [selected-transforms (take 5 (repeatedly #(rand-choice transforms)))
+    (let [selected-transforms (take 5 (repeatedly #(rand-nth transforms)))
           proposals ((apply juxt selected-tranforms) sol-current)
           sol-best (max-element cost-func proposals)]
       
@@ -96,16 +91,16 @@
   [search-algo, depth]
   (let [MAXDEPTH 3
     ; Find problem solutions for each problem
-    prob-sols (map (fn [prob] (search-algo 
-      (:cost-func prob) 
-      (:init-sol prob) 
-      (:transforms prob))) problems)
+    prob-sols (map (fn [prob] (search-algo (:cost-func prob) 
+                                           (:init-sol prob) 
+                                           (:transforms prob))) 
+                problems)
     prob-scores ()
     score-probs (sum prob-scores)]
     
     (if (< depth MAXDEPTH)
-      (+ score-probs (search-algo eval-search search-algo program-transforms (inc depth)))
-      score-probs)))
+        (+ score-probs (search-algo eval-search search-algo program-transforms (inc depth)))
+        score-probs)))
 
 ; if I eval all the function then what will happen
 ; They will be callable by name, which is convenient
@@ -118,7 +113,7 @@
   (do
     (map eval (:funcs program))
     (if (zero? num-cycles)
-      sgc(dec num-cycles))))
+        (sgc-search-algo (dec num-cycles)))))
 
 (defn -main
   []
