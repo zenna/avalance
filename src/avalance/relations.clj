@@ -34,7 +34,7 @@
 ; 1. Stop doing completely stupid things
 ; 2. Get data back out from inner loops
 ; 3. Stop when I think I have a solution
-; 4. Make better decisions - simple one 
+; 4. Make better decisions - simple one
 
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform
@@ -432,7 +432,7 @@
 (defn sample-model
   "choose models, currently random"
   [sampled-models models data]
-  {:pre [(<= (count sampled-models) (count models))]}
+  {:pre [(< (count sampled-models) (count models))]}
   (let [proposed-model (rand-nth models)]
     ; Don't repeat, don't choose one i've seen before
     ; (println "sampled-models" sampled-models)
@@ -448,6 +448,7 @@
 (defn extend?
   "Should we extend?"
   [depth equation]
+  (println "extend?" (:cost equation) depth)
   (if (and (number? (:cost equation)) ;TODO: This is because we sometimes get NaNs 
           (< depth 1)
           (< (:cost equation) 100)) ;TODO- ARBITRARY NUMBER HERE
@@ -564,11 +565,7 @@
    :name 'constant})
 
 (def models
-  [power-model
-   linear-model
-   exponent-model
-   sin-model
-   constant-model])
+  [constant-model])
 
 ; Error functions - all binary
 (def error-fs
