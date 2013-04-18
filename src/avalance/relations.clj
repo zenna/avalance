@@ -8,6 +8,10 @@
 (use 'avalance.neldermead)
 (use 'avalance.helpers)
 
+; Terms: subexpr - a function of the data, which when evaluated will return a real number
+        ; model   - a predicate expression containing parameters as well as variables, cannot be evaluated unless params are instantiated
+        ; equation - a (set of) models with params instatiated to values and variables to (functions of) data variables
+
 ; What's wrong with this
 
 ; 1.I need a better structure for attempting things, and adding things that I can attempt without getting into
@@ -19,21 +23,14 @@
 ; - A PCFG is problematic, I want to try simple things first
 
 ; TODO
-; THE INFERENCE
 ; Handle nil!
-; Return right data structure from gen thing
-; Implement expression testing to prevent stupid expressions
-; bind variables to model
-; update cost func to take into account new model form
-; decide accept criterion
-; write code to
-; choose sub expression of 
+; Handle NAN Cost function some times NAN
 ; AVOID TRYING TO FIT PARAMS WHEN THERE ARE NONE
 
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform
   "Uniformly generates real valued data from function"
-  [func min-val max-val num-samples]
+  [f min-val max-val num-samples]
   (cond (< max-val min-val)
       (throw (Exception. "max-val must be greater than min-val"))
     :else
@@ -41,7 +38,7 @@
         (cond (> x max-val)
           {'a xs 'b fxs}
         :else
-          (recur (+ x (/ (- max-val min-val) num-samples)) (concat xs [x]) (concat fxs [(func x)]))
+          (recur (+ x (/ (- max-val min-val) num-samples)) (concat xs [x]) (concat fxs [(f x)]))
         ))))
 
 ; FIXME: It could be that the data covaries in wuch a way that function
@@ -61,10 +58,9 @@
         :else
         true))))
 
-; 
 (defn expr-unique?
   [expr expr-data exprs]
-  "Is this exprs not already in the list of exprs"
+  "Is this expr not already in the list of exprs"
   ; Check syntactic equivalence first, as less expensive
   (cond
     (in? (keys exprs) expr)
@@ -91,7 +87,7 @@
   (map #(datapoint (first %1)) arg-map))
 
 (defn transform-data
-  "Applies subexpr to data to generated transformed dataset"
+  "Applies subexpr to data to generate new dataset"
   [expr data]
   (let [data-vars (keys data)
         data-length (count (data (first (keys data))))]
@@ -103,6 +99,7 @@
       ; here ill have a:0 b:4  and function a:1 b:0
       (apply (:as-lambda expr) (rearrange-args datapoint (:arg-map expr)))))))
 
+; TODO - DELETE THIS, appears to be redundant with make-model-lambda
 (defn build-expr-metadata
   [expr data-vars]
   "Convert a subexpression to one with executable lambda and argument map"
@@ -119,6 +116,22 @@
      ; it must be sorted for convenience in rearrange-args 
      :arg-map (sort-by val < (zipmap vars-in-expr (range (count vars-in-expr))))
      :vars vars-in-expr}))
+
+(defn make-model-lambda-unmem
+  "Make evaluable model rhs/lhs"
+  [expr & args]
+  ; 1. find out which of the vars or params are in the subexpr
+  ; (println "EXPR" expr "args" args)
+  (let [flat-expr (if (symbol? expr) (list expr) (flatten expr))
+        vars-in-expr
+          (vec (for [symb (reduce concat args)
+                :when (in? flat-expr symb)]
+            symb))
+        arg-map (zipmap vars-in-expr (range (count vars-in-expr)))]
+  ; (println "EXPR" expr "\nvars!" vars "\nparams" params "\nargmap" (sort-by val < arg-map)) 
+  {:as-lambda  (make-lambda-args expr vars-in-expr) :arg-map (sort-by val < arg-map)}))
+
+(def make-model-lambda (memoize make-model-lambda-unmem))
 
 (defn gen-subexprs
   "Generate functions of data variables,
@@ -158,35 +171,11 @@
      :subexprs-data
      expr-exprs-data}))
 
-(defn make-model-lambda2
-  "Make evaluable model rhs/lhs"
-  [expr & args]
-  ; 1. find out which of the vars or params are in the subexpr
-  ; TODO FIX THIS SUCH THAT PARAMETERS ALWAYS COME FIRST
-  ; (println "EXPR" expr "args" args)
-  (let [flat-expr (if (symbol? expr) (list expr) (flatten expr))
-        vars-in-expr
-          (vec (for [symb (reduce concat args)
-                :when (in? flat-expr symb)]
-            symb))
-        arg-map (zipmap vars-in-expr (range (count vars-in-expr)))]
-  ; (println "EXPR" expr "\nvars!" vars "\nparams" params "\nargmap" (sort-by val < arg-map)) 
-  {:as-lambda  (make-lambda-args expr vars-in-expr) :arg-map (sort-by val < arg-map)}))
-
-(def make-model-lambda (memoize make-model-lambda2))
-
 (defn sum-sqr-error
-  "Take a model and a dataset and produce a function which when given a set of parameters of the model
-  will compute the mean squared error of the model against data"
+  "Take a model and a dataset and produce a function which when given a set of 
+  parameters of model will compute the SSE of the model against data"
   [model data var-binding]
   ; var-binding e.g. {a: x b: y}
-  ; model: lhs-arg-map e.g. {'x 0 'c 1 'm 2}
-  ; so for every symbol in model arg-map
-  ; I need to take symbol determine whether it is a variable or a parameter
-  ; if it is a variable I need to look it up in var-binding
-  ; e.g. x-> variable -> a and put it in the vector position at that slot 0
-  ; variable binding is model-variabl -> datavariable e.g. x->a
-
   ; PERFORMANCE I COULD USE PARTIAL EVALUATION TO MAKE THIS FASTER I.E DO THE BINDING ONCE
   (fn [param-values]
     ; WARNING CODE ASSUMES args is sorted
@@ -225,13 +214,12 @@
             (recur (+ accum-error (Math/pow error 2))
                    (inc index))))))))
 
-; Returns [what is love! baby dont hurt me]
-; TODO generalise this to n params
 (defn fit-model
-  "Returns error for best fit of all models against data"
-  [subexprs data model var-binding]
+  "Returns best fit model against data"
+  [data model var-binding]
   (let [cost-func (sum-sqr-error model data var-binding)
-        best-fit-params (nelder-mead cost-func [1.0 1.0])]
+        num-params (count (:params model))
+        best-fit-params (nelder-mead cost-func [1.0 1.0])];(vec (repeatedly num-params rand)))]
     {:model model
      :param-values (zipmap (:params model) (:vertex best-fit-params))
      :cost (:cost best-fit-params)
@@ -239,6 +227,8 @@
 
 (defn create-cost-func-for-datapoint
   [datapoint model var-binding lhs-lambda rhs-lambda]
+  "For a data point, generate a cost function taking |extensions| args
+  and evaluate to 0 when lhs = rhs for that datapoint"
   (fn [extension-values]
     (let [extension-binding (zipmap (:ext-vars model) extension-values) 
           {expr :as-expr vars :vars params :params} model]
@@ -292,16 +282,6 @@
   [data equation var-binding]
   (println "FITTING EXTENSIONS")
   (let [data-size (count (data (first (keys data))))
-        ; For every data point, generate a cost function taking |extensions| args
-        ; and evaluate to 0 when lhs = rhs for that datapoint
-        ; Make model lambda only needs to happen once per expression
-        ; it produces a function for each side of the equation which takes as input the variables
-        ; parameters and an extension value
-        ; the make cost function shold take a made lambda
-        ; and return a function which takes in a set of values for the extensions
-        ; takes the values for a particular datapoint
-        ; computes the left and right hand sides
-        
         lhs (nth (:as-expr-ext equation) 1)
         rhs (nth (:as-expr-ext equation) 2)
         lhs-lambda (make-model-lambda lhs (:vars equation) (:params equation) (:ext-vars equation))
@@ -333,29 +313,6 @@
 
         extension-vals)))
 
-; [1 2] [1 2] -> [[1 1] [2 2]]
-; [[1 1] [2 2]] -> [1 2]
-; (def extension {:as-expr (= y (+ (sin (+ v x)) v2)) :params ['v1 'v2] :vars ['y 'x]
-; Now the difference is that I am not trying to fit one v but create a new dataset
-; 1. I need to create a new rhs-lambda lhs-lambda
-; 2. I could just make a function which makes the rhs-lhs lambda from a model
-; 3. But first update the model by insantating the parameters and adding in the vs
-; 4. Then I need to abstract out details of mean-sqr-error and make another function which
-
-
-
-; (defn accept-equation?
-;   "Should we continue down this path"
-;   ;. If no more tests left then accept of course
-;   ;. Otherwise we need to compute posterior
-;   ;. Accepting means I will use this 
-;   [score model num-tests-left]
-;   (cond (zero num-tests-left?) false
-;     ))
-  ; 1. How to represent equation
-  ; 2. How to compute prior, complexity of the equation, or whole equation
-  ; 3. How to choose
-
 (defn bind-data-to-model
   "Creates a mapping between the variables of a sub expression and those of model"
   [data model]
@@ -363,18 +320,6 @@
   ; (println "DATA" data "MODEL" model)
   (zipmap (:vars model) (keys data)))
 
-; The output of this function should be a list of size >= 1 of models with parameters instantiated
-
-; There are three loops
-; Should I should I try a new set of subexprs?
-  ; - No? return my equations
-; For this given set of subexprs should I try a new model
-  ; - No? Return
-; For this model should I try a new error extension?
-
-; Terms: subexpr - a function of the data, which when evaluated will return a real number
-        ; model   - a predicate expression containing parameters as well as variables, cannot be evaluated unless params are instantiated
-        ; equation - a (set of) models with params instatiated to values and variables to (functions of) data variables
 ; FIXME: This can replace extension
 (defn suggest-extension
   "Suggest an extension to an equation"
@@ -506,7 +451,7 @@
     (loop [equations [] num-plots-left max-num-plots]
       (let [subexprs-subexprs-data (gen-subexprs data num-subexprs expr-constraints)
            {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
-           ok (println "SUBSEXPRESSIONS" (keys subexprs-data))
+           ok (println prefixprint "SUBEXPRESSIONS:" (keys subexprs-data))
             equations
         (conj equations
         ; Loop through different models return set of
@@ -514,8 +459,8 @@
           (let [model (sample-model sampled-models models subexprs-data)
                 sampled-models (conj sampled-models model)
                 var-binding (bind-data-to-model subexprs-data model)
-                equation (fit-model subexprs subexprs-data model var-binding)
-                ok (println "TRIED MODEL" equation)]
+                equation (fit-model subexprs-data model var-binding)
+                ok (println prefixprint "TRIED MODEL" equation)]
                 ; 1. compile-expression ]
                 ; (println equation)
             
