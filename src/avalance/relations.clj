@@ -565,7 +565,11 @@
    :name 'constant})
 
 (def models
-  [constant-model])
+  [constant-model
+   exponent-model
+   linear-model
+   sin-model
+   power-model])
 
 ; Error functions - all binary
 (def error-fs
