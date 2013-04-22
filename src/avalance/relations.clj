@@ -33,6 +33,8 @@
 
 ; Before I tear everything down I should make this do what it intended to do
 ; 1. Constriant find-expressio to just function relationships
+; -- prevent e1 / e0 in rhs
+; -- variable binding
 ; 2. Do it for all extensions
 ; 3. roll extensions back into model
 ; 
@@ -43,6 +45,8 @@
 ; Still trying too many stupid things
 ; Not stopping when I find an answer
 ; When error as fraction o fdata
+; Ensure variable binding is correct
+; Ensure that the constraint is mot modified
 
 
 ; Returns two vectors or tuples for each datapoint
@@ -151,41 +155,66 @@
 
 (def make-model-lambda (memoize make-model-lambda-unmem))
 
+; Problem is that if I just try to generate 1
+; And i've already seen e0
+; I only want to generate one once
+
+(defn extension-var?
+  [symb]
+  (and (symbol? symb)
+        (.startsWith (name symb) "e")))
+
 (defn gen-subexprs
   "Generate functions of data variables,
   use expr-constraints to restrict generated expressions
   through rejection sampling (hence must be relatively easily
   satisfiable)"
-  [data num-to-gen expr-constraints? seen-subexprs]
-
+  [data num-to-gen expr-constraints? mandatory-exprs seen-subexprs]
+  ; (println "---GENERATING EXPRESSIONS")
   (let [data-vars (vec (keys data))
-        data-prods (map (fn [variable] {:prod variable :weight 10000.0}) data-vars)
+        ; Remove extensions from grammar because we dont want recursive definitions
+        data-vars-wo-extensions (filter #(not (extension-var? %1)) data-vars)
+        data-prods (map (fn [variable] {:prod variable :weight 10000.0}) data-vars-wo-extensions)
         new-pcfg (add-data-to-pcfg data-prods compound-pcfg)
-        ; ok (println "GENERATING EXPRESSIONS" num-to-gen)
+
         ; Generate exprs through sample and reject if it fails to adhere to constraints
         expr-exprs-data
-          (loop [exprs {} num-left-to-gen num-to-gen]
-            (let [expr (gen-expr-pcfg new-pcfg)
+          (loop [exprs {} num-left-to-gen num-to-gen mandatory-exprs-loop mandatory-exprs]
+            (let [expr (if (empty? mandatory-exprs-loop)
+                           (gen-expr-pcfg new-pcfg)
+                           (first mandatory-exprs-loop))
+                  mandatory-exprs-loop (rest mandatory-exprs-loop)
                   expr-exec (build-expr-metadata expr data-vars)
+                  ; ok (println "EXPRESSION IS" expr "NANDS" mandatory-exprs "mand!" mandatory-exprs-loop)
                   expr-data {expr (transform-data expr-exec data)}]
+                  ; ok (println "COVARIES" (expr-covaries? expr-data data) "UNIQUE" (expr-unique? expr expr-data exprs))]
               (cond
                 (zero? num-left-to-gen)
                 exprs
 
                 ; Check that the data covaries with the data and is unique
                 (and (expr-covaries? expr-data data)
-                     (expr-unique? expr expr-data exprs)
-                     (expr-constraints? expr (if-let [a (keys exprs)] a '())))
-                (recur (merge exprs expr-data) (dec num-left-to-gen))
+                     (expr-unique? expr expr-data exprs))
+                     ; (expr-constraints? expr (if-let [a (keys exprs)] a '())))
+                (recur (merge exprs expr-data) (dec num-left-to-gen) mandatory-exprs-loop)
 
                 :else
-                (recur exprs num-left-to-gen))))]
-
+                (recur exprs num-left-to-gen mandatory-exprs-loop))))]
+          ; ok (println "SEEN" seen-subexprs "NEW" (keys expr-exprs-data))]
+;
     ; (println "VARS" data-vars "A" seen-subexprs "B" (keys expr-exprs-data))
 
     ; Try again if I generated something I've already seen
-    (if (in? seen-subexprs (keys expr-exprs-data))
-        (recur data num-to-gen expr-constraints? seen-subexprs)
+    (cond
+        ; hack to prevent infinite loops when num-to-gen is 1 and already seen e0
+        (and (not (empty? mandatory-exprs))
+             (in? seen-subexprs (keys expr-exprs-data)))
+        (recur data 2 expr-constraints? mandatory-exprs seen-subexprs)
+
+        (in? seen-subexprs (keys expr-exprs-data))
+        (recur data num-to-gen expr-constraints? mandatory-exprs seen-subexprs)
+
+        :else
         ; Otherwise package it up nicely
         {:subexprs
          ; PERFORMANCE: MEMOIZE build-expr-metadata
@@ -358,16 +387,23 @@
 
 (defn bind-data-to-model
   "Creates a mapping between the variables of a sub expression and those of model"
-  [data model]
+  [data model mandatory-exprs]
   {:pre [(= (count (keys data)) (count (:vars model)))]}
+  ; (println "MANDS" mandatory-exprs)
+  (let [indep-var (nth (:as-expr model) 1)
+        var-binding (if (not (empty? mandatory-exprs))
+                        {indep-var (first mandatory-exprs)}
+                        {})
+        new-vars (remove #(in? (keys var-binding) %) (:vars model))
+        new-data (remove #(in? (vals var-binding) %) (keys data))]
   ; (println "DATA" data "MODEL" model)
-  (zipmap (shuffle (:vars model)) (keys data)))
+  (merge var-binding (zipmap (shuffle new-vars) new-data))))
 
 ; FIXME: This can replace extension
 (defn suggest-extension
   "Suggest an extension to an equation"
   [equation error-fs]
-  (let [num-extensions (inc (rand-int 1))
+  (let [num-extensions (inc (rand-int 2))
         extension-vars (map #(symbol (str "e" %)) (range num-extensions))
         extended-expr
         ; Repeatedly reply a modification
@@ -376,7 +412,8 @@
             modified-equation
             ; Ignore first elements of list, which will be function symbols;
             ; We don't want to replace them as they don't evaluate by themselves to reals
-            (let [all-keys (coll-to-keys equation (fn [elem pos] (zero? pos)))
+            (let [all-keys (coll-to-keys equation (fn [elem pos] (or (zero? pos)
+                                                                     (extension-var? elem))))
                   key-to-change (rand-nth (keys all-keys))
                   error-f (rand-nth error-fs)
                   value-at-key (all-keys key-to-change)
@@ -395,6 +432,9 @@
 ; TESTING CONSTRAINTS MOFO (- b e1) (e1) true
 (defn make-expr-constraints
   [exprs-constraints]
+  "Create a function which checks a given expression and previously
+  generated expressions and say's whether it's alright or not.
+  exprs-constraints: vector of all symbols which must be in equation"
   (fn [current-expr gend-exprs]
     ; We transformed the generated expressions to 
     ; account for the fact that single symbols will not be lists
@@ -436,7 +476,8 @@
 
       ; Let's try to find an extension
       :else
-      (let [ok (println "Trying extension" num-tries-left)
+      (let [prefixprint (apply str (repeat depth "  "))
+            ok (println "\n" prefixprint "Trying extension" num-tries-left)
             extended-expr (suggest-extension (:as-expr model) error-fs)
             extended-model (merge model extended-expr {:param-values (:param-values equation)})
             {extension-data :vertex score :cost} (fit-extensions subexprs-data extended-model var-binding)]
@@ -448,17 +489,23 @@
             (recur good-extensions (dec num-tries-left))
 
             ; Otherwise let's see if we can make a fit the extension by recursing with
-            (let [;expr-constraints (map make-expr-constraints (:ext-vars extended-expr))
-                  expr-constraints (make-expr-constraints (:ext-vars extended-expr)) 
-                  compound-data (merge (zipmap (:ext-vars extended-expr) extension-data) data subexprs-data)
-                  prefixprint (apply str (repeat depth "  "))
+                  ; legacy hack: make-expr-constraints expects a vector of symbols,
+                  ; so for converts 'e0 to ['e0] for instance 
+            (let [compound-data (merge (zipmap (:ext-vars extended-expr) extension-data) data subexprs-data)
+                  extensions (map (fn [constraint]
+                                    (let [eqs (find-expr compound-data all-models error-fs (inc depth) constraint)]
+                                      (if (empty? eqs)
+                                          nil
+                                          (rand-nth-reciprocal-categorical eqs (extract eqs :score)))))
+                                  (for [symb (:ext-vars extended-expr)] [symb]))
                   ok (println prefixprint "Found could fit extension to data - Recursing to find expression for extension" (:as-expr-ext extended-expr))
-                  extension (find-expr compound-data all-models error-fs (inc depth) expr-constraints)
-                  okok (println "println prefixprint FOUND THIS EXTENSION YO" extension)
-                  ]
+                  ; extension (find-expr compound-data all-models error-fs (inc depth) expr-constraints)
+                  found-ext-all-vars (not-any? nil? extensions)
+                  okok (println "Found Extensions:" (count extensions) "END")
+                  okok (println "Found Extensions2:" extensions "END")]
                   ; (println "ARE"extension)
-                  (if true ;TOOD extension is good?
-                  (recur (into good-extensions extension) (dec num-tries-left))
+                  (if found-ext-all-vars ;TOOD extension is good?
+                  (recur (conj good-extensions extensions) (dec num-tries-left))
                   (recur good-extensions (dec num-tries-left)))))))))
 
 ; Selection of models should be based on the data, and the available models
@@ -494,7 +541,7 @@
 
 (defn try-more-subexprs?
   [equations num-plots-left]
-  (println "EQUATIONSS" equations)
+  (println "Try More Subexpressions? Current Equations:" equations)
 
   (cond
     (zero? num-plots-left) false
@@ -513,7 +560,7 @@
 ; TODO- Depth control of extensions
 (defn find-expr
   "Searches for an expression"
-  [data all-models error-fs depth expr-constraints]
+  [data all-models error-fs depth mandatory-exprs]
   (let [max-num-plots 5
         prefixprint (apply str (repeat depth "  "))
         ok (println "\n" prefixprint "RECURSING WITH DATA" (keys data))]
@@ -521,21 +568,23 @@
     ; loop over (samples of) subexpression sets
     (loop [equations [] num-plots-left max-num-plots seen-subexprs []]
       ;1. Force myself to make better plo 
-      (let [num-subexprs (inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
-            
+      (let [num-subexprs-attempt (inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
             ; Filter out models of wrong number of parameters
-            models (filter #(= num-subexprs (count (:vars %))) all-models)
-            subexprs-subexprs-data (gen-subexprs data num-subexprs expr-constraints seen-subexprs)
+            expr-constraints? (make-expr-constraints mandatory-exprs)
+            subexprs-subexprs-data (gen-subexprs data num-subexprs-attempt expr-constraints? mandatory-exprs seen-subexprs)
             {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
+            num-subexprs (count (keys subexprs-data))
+            models (filter #(= num-subexprs (count (:vars %))) all-models)
             ok (println "\n" prefixprint "Sub-expressions:" num-subexprs (keys subexprs-data))
             equations
         (into equations
         ; Loop through different models return set of
         (loop [sampled-models [] c-equations [] num-model-tests-left (count models)]
-          (let [okok (println "C-EQUATIONS" c-equations)
+          (let [;okok (println "C-EQUATIONS" c-equations)
                 model (sample-model sampled-models models subexprs-data)
                 sampled-models (conj sampled-models model)
-                var-binding (bind-data-to-model subexprs-data model)
+                var-binding (bind-data-to-model subexprs-data model mandatory-exprs)
+                ; whaa (println "VARBINDING" var-binding)
                 equation (fit-model subexprs-data model var-binding)
                 ; ok (println prefixprint "TRIED MODEL" (vals (:model equation)) (:cost equation))
                 okS (println prefixprint "Tried Model, Depth: " depth " Got equation" (vals equation))]
@@ -559,8 +608,14 @@
                                       all-models error-fs equation
                                       var-binding subexprs-data
                                       data depth)
-                    ; For each proposed extension incorporate into model, refit model, and sample-a-good-one
-                    sampled-good-extension (rand-nth-categorical good-extensions :score)] ; TODO
+                    ; For each proposed extension incorporate into model, refit model, and sample-a-good-
+                    whatwhat (println "SAMPLED_EAA" good-extensions "\n")
+
+                    weights (map (fn [ext] (println "EXT SIZE" ext) (mean (extract ext :score)))
+                                  good-extensions)
+
+                    sampled-good-extension (rand-nth-reciprocal-categorical good-extensions weights)
+                    ok (println "GREAT SAMPLE!" sampled-good-extension)] ; TODO
 
                   ; If we found a good extension, incorporate into the equations, add this to the list
                   ; and then try a new model
@@ -645,7 +700,7 @@
 (def data (gen-data-uniform x-squared 1 100 10))
 ; (def subsexprs (gen-subexprs data 2))
 
-(println "\n\nTHE SOLUTION IS:" (find-expr data models error-fs 0 (fn [x y] true)))
+(println "\n\nTHE SOLUTION IS:" (find-expr data models error-fs 0 []))
 
 (defn -main[])
 

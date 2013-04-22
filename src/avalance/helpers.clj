@@ -25,6 +25,11 @@
         best-index (.indexOf mapped-coll max-val)]
     [(nth coll best-index)]))
 
+(defn extract
+  "For list of maps, extract a key"
+  [coll k]
+  (map (fn [m] (m k)) coll))
+
 (defn reciprocal
   "1/x"
   [x] (/ 1 x))
@@ -32,6 +37,11 @@
 (defn sum
   [coll]
   (reduce + coll))
+
+(defn mean
+  [coll]
+  (/ (reduce + coll)
+      (count coll)))
 
 (defn rand-bool
   "Return uniform over true,false"
@@ -51,40 +61,43 @@
   ; Nan is the only value for which equality is false
   (false? (== x x)))
 
-(defn rand-nth-categorical
-  "Categorical distribution - choose element from list. Coll is vector of maps
-  e.g. [{:somedata 'data :weight 10} ...]"
-  [coll weight-key]
-  (let [clean-coll (filter #(not (NaN? (weight-key %1))) coll) ; Get rid of NaN costs
-        ok (println "CLEANING YO COUNTS BEFORE AND AFTGER:" (count coll) (count clean-coll))
-        total-weight (sum (map #(weight-key %1) clean-coll))
-        sorted-coll (sort-by weight-key > clean-coll)
-        rand-point (rand total-weight)]
-    (loop [clean-coll-loop clean-coll accum-weight 0.0]
-      (if (>= (+ accum-weight (weight-key (first clean-coll-loop))) rand-point)
-        (first clean-coll-loop)
-        (recur (rest clean-coll-loop) (+ accum-weight (weight-key (first clean-coll-loop))))))))
+; (defn rand-nth-categorical
+;   "Categorical distribution - choose element from list. Coll is vector of maps
+;   e.g. [{:somedata 'data :weight 10} ...]"
+;   [coll weight-key]
+;   (let [clean-coll (filter #(not (NaN? (weight-key %1))) coll) ; Get rid of NaN costs
+;         ok (println "CLEANING YO COUNTS BEFORE AND AFTGER:" (count coll) (count clean-coll))
+;         total-weight (sum (map #(weight-key %1) clean-coll))
+;         sorted-coll (sort-by weight-key > clean-coll)
+;         rand-point (rand total-weight)]
+;     (loop [clean-coll-loop sorted-coll(ran) accum-weight 0.0]
+;       (if (>= (+ accum-weight (weight-key (first clean-coll-loop))) rand-point)
+;         (first clean-coll-loop)
+;         (recur (rest clean-coll-loop) (+ accum-weight (weight-key (first clean-coll-loop))))))))
 
-(defn rand-nth-negative-categorical
+(defn rand-nth-reciprocal-categorical
   "Categorical distribution - choose element from list. Coll is vector of maps
   e.g. [{:somedata 'data :weight 10} ...]"
-  [coll weight-key]
-  (let [clean-coll (filter #(not (NaN? (weight-key %1))) coll)
-        zero-cost-coll (filter #(zero? (weight-key %1)) clean-coll)
+  [coll weights]
+  {:pre [(= (count coll) (count weights))]}
+  (let [coll-weights (zipmap coll weights)
+        clean-coll (filter #(not (NaN? (second %))) (seq coll-weights))
+        ; clean-coll (filter #(not (NaN? (weight-key %1))) coll)
+        zero-cost-coll (filter #(zero? (second %)) clean-coll)
         sample
         (if (empty? zero-cost-coll)
-            (let [sorted-coll (sort-by weight-key < clean-coll)
-                  total-weight (sum (map #(reciprocal (weight-key %1)) clean-coll))
+            (let [sorted-coll (sort-by val < clean-coll)
+                  total-weight (sum (map #(reciprocal (val %1)) clean-coll))
                   ok (println "actual-total" total-weight)
                   rand-point (rand total-weight)]
-                  (loop [clean-coll-loop clean-coll accum-weight 0.0]
-                    (if (>= (+ accum-weight (reciprocal (weight-key (first clean-coll-loop))))
+                  (loop [clean-coll-loop sorted-coll accum-weight 0.0]
+                    (if (>= (+ accum-weight (reciprocal (val (first clean-coll-loop))))
                             rand-point)
-                      (first clean-coll-loop)
+                      (key (first clean-coll-loop))
                       (recur (rest clean-coll-loop)
                              (+ accum-weight (reciprocal 
-                                                 (weight-key (first clean-coll-loop))))))))
-            (rand-nth zero-cost-coll))]
+                                                 (val (first clean-coll-loop))))))))
+            (key (rand-nth zero-cost-coll)))]
     sample))
 
 (defn square
