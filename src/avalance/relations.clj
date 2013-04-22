@@ -17,6 +17,7 @@
 ; Figure out what is causing NaN
 ; Do not repeat subexprs
 ; Do not repeat model
+; Im overriding e0 sometimes
 
 ; Current Problems
 ; I am repeating tests which provide no added information
@@ -35,6 +36,11 @@
 ; 2. Get data back out from inner loops
 ; 3. Stop when I think I have a solution
 ; 4. Make better decisions - simple one
+
+; Still trying too many stupid things
+; Not stopping when I find an answer
+; When error as fraction o fdata
+
 
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform
@@ -228,16 +234,33 @@
             (recur (+ accum-error (Math/pow error 2))
                    (inc index))))))))
 
+; (defn data-range
+;   ""
+;   )
+
+; How to know when to extend a model?
+; Think its like a sine wave but not
+; The reality is in seeing what its like and what way its not like that
+; What way is it not like that
+
+(defn cost-to-score
+  "convert a cost to a score"
+  [model cost data]
+  ; (println "CONVERTING COST TO SCORE" cost (reciprocal cost))
+  (if (Double/isNaN cost) ; Handle NaN
+    Double/POSITIVE_INFINITY
+    cost))
+
 (defn fit-model
   "Returns best fit model against data"
   [data model var-binding]
   (let [cost-func (sum-sqr-error model data var-binding)
         num-params (count (:params model))
         best-fit-params (nelder-mead cost-func (vec (repeatedly num-params rand)))]
-    {:model model
-     :param-values (zipmap (:params model) (:vertex best-fit-params))
-     :cost (:cost best-fit-params)
-     :var-binding var-binding}))
+    (merge model
+      {:param-values (zipmap (:params model) (:vertex best-fit-params))
+       :score (cost-to-score model (:cost best-fit-params) data)
+       :var-binding var-binding})))
 
 (defn create-cost-func-for-datapoint
   [datapoint model var-binding lhs-lambda rhs-lambda]
@@ -294,7 +317,7 @@
 (defn fit-extensions
   "Takes an equation with extensions and returns a new dataset for each extension"
   [data equation var-binding]
-  (println "FITTING EXTENSIONS")
+  ; (println "FITTING EXTENSIONS")
   (let [data-size (count (data (first (keys data))))
         lhs (nth (:as-expr-ext equation) 1)
         rhs (nth (:as-expr-ext equation) 2)
@@ -302,6 +325,7 @@
         rhs-lambda (make-model-lambda rhs (:vars equation) (:params equation) (:ext-vars equation))
         ; pbuddy (println "DADA" data-size equation lhs rhs)
 
+        ; For every data point, run nelder mead
         extension-vals (for [data-index (range data-size)
                               :let [slice (slice-data data data-index)
                                     ; Create a new cost function for each data point
@@ -310,6 +334,8 @@
                           ; USE NELDER-MEAD to find PARAMETERS FOR THIS POINT
                           (nelder-mead cost-func
                                       (vec (repeatedly (count (:ext-vars equation)) rand))))]
+      
+      ; We end up with lots of values, need to compile together to create single cost
       (reduce (fn [all r]
                   (let [all-v (:vertex all)
                         r-v (:vertex r)
@@ -332,13 +358,13 @@
   [data model]
   {:pre [(= (count (keys data)) (count (:vars model)))]}
   ; (println "DATA" data "MODEL" model)
-  (zipmap (:vars model) (keys data)))
+  (zipmap (shuffle (:vars model)) (keys data)))
 
 ; FIXME: This can replace extension
 (defn suggest-extension
   "Suggest an extension to an equation"
   [equation error-fs]
-  (let [num-extensions (inc (rand-int 2))
+  (let [num-extensions (inc (rand-int 1))
         extension-vars (map #(symbol (str "e" %)) (range num-extensions))
         extended-expr
         ; Repeatedly reply a modification
@@ -407,7 +433,8 @@
 
       ; Let's try to find an extension
       :else
-      (let [extended-expr (suggest-extension (:as-expr model) error-fs)
+      (let [ok (println "Trying extension" num-tries-left)
+            extended-expr (suggest-extension (:as-expr model) error-fs)
             extended-model (merge model extended-expr {:param-values (:param-values equation)})
             {extension-data :vertex score :cost} (fit-extensions subexprs-data extended-model var-binding)]
             ; (println extension-data " score " score)
@@ -421,11 +448,13 @@
             (let [expr-constraints (make-expr-constraints (:ext-vars extended-expr)) 
                   compound-data (merge (zipmap (:ext-vars extended-expr) extension-data) data subexprs-data)
                   prefixprint (apply str (repeat depth "  "))
-                  ok (println prefixprint "ABOUT TO RECURSE WITH EXTENSION" (:as-expr-ext extended-expr))
-                  extension (find-expr compound-data all-models error-fs (inc depth) expr-constraints)]
+                  ok (println prefixprint "Found could fit extension to data - Recursing to find expression for extension" (:as-expr-ext extended-expr))
+                  extension (find-expr compound-data all-models error-fs (inc depth) expr-constraints)
+                  ; okok (println "println prefixprint FOUND THIS EXTENSION YO" extension)
+                  ]
                   ; (println "ARE"extension)
                   (if true ;TOOD extension is good?
-                  (recur (conj good-extensions extension) (dec num-tries-left))
+                  (recur (into good-extensions extension) (dec num-tries-left))
                   (recur good-extensions (dec num-tries-left)))))))))
 
 ; Selection of models should be based on the data, and the available models
@@ -444,66 +473,82 @@
   "Should we continue down this path"
   [score model num-tests-left])
 
+(defn accept-equation?
+  [equation data]
+  (println "EQUATION" equation)
+  (cond
+    (< (:score equation) 5) true
+
+    :else false))
+
 ; Stop if the depth get's greater than some threshold
 (defn extend?
   "Should we extend?"
   [depth equation]
-  (println "extend?" (:cost equation) depth)
-  (if (and (number? (:cost equation)) ;TODO: This is because we sometimes get NaNs 
+  (println "extend? score is" (:score equation) " Depth:" depth)
+  (if (and (not (NaN? (:score equation))) ;TODO: This is because we sometimes get NaNs 
           (< depth 1)
-          (< (:cost equation) 100)) ;TODO- ARBITRARY NUMBER HERE
+          (< (:score equation) 50)) ;TODO- ARBITRARY NUMBER HERE
       true
       false))
 
-(defn accept-equation?
-  [equations num-tests-left models sampled-models]
-  (cond
-    (zero? num-tests-left) true
-
-    (= (count sampled-models) (count models)) true
-
-    :else false))
-
 (defn try-more-subexprs?
   [equations num-plots-left]
+  (println "EQUATIONSS" equations)
+
   (cond
     (zero? num-plots-left) false
-    :else ; TODO WHEN ELSE SHOULD I STOP TRYING SUBEXPRS
-      true))
+
+    ; Stop recursing if any of them are really good
+    (some #(accept-equation? %1 'fix) equations)
+    false
+
+    :else true))
+
+; If we are to say a model is a set of equations then well, a lot of this structure need be updated
+
 
 ; TODO- Depth control of extensions
 (defn find-expr
   "Searches for an expression"
   [data all-models error-fs depth expr-constraints]
-  (let [num-subexprs (inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
-        ; Filter out models of wrong number of parameters
-        models (filter #(= num-subexprs (count (:vars %))) all-models)
-        max-num-plots 5
+  (let [max-num-plots 5
         prefixprint (apply str (repeat depth "  "))
         ok (println "\n" prefixprint "RECURSING WITH DATA" (keys data))]
 
     ; loop over (samples of) subexpression sets
     (loop [equations [] num-plots-left max-num-plots seen-subexprs []]
       ;1. Force myself to make better plo 
-      (let [subexprs-subexprs-data (gen-subexprs data num-subexprs expr-constraints seen-subexprs)
-           {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
-           ok (println prefixprint "SUBEXPRESSIONS:" (keys subexprs-data))
+      (let [num-subexprs (inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
+            
+            ; Filter out models of wrong number of parameters
+            models (filter #(= num-subexprs (count (:vars %))) all-models)
+            subexprs-subexprs-data (gen-subexprs data num-subexprs expr-constraints seen-subexprs)
+            {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
+            ok (println "\n" prefixprint "Sub-expressions:" num-subexprs (keys subexprs-data))
             equations
         (conj equations
         ; Loop through different models return set of
-        (loop [sampled-models [] equations [] num-model-tests-left (count models)]
+        (loop [sampled-models [] c-equations [] num-model-tests-left (count models)]
           (let [model (sample-model sampled-models models subexprs-data)
                 sampled-models (conj sampled-models model)
                 var-binding (bind-data-to-model subexprs-data model)
                 equation (fit-model subexprs-data model var-binding)
-                ok (println prefixprint "TRIED MODEL" (vals (:model equation)) (:cost equation))]
+                ; ok (println prefixprint "TRIED MODEL" (vals (:model equation)) (:cost equation))
+                okS (println prefixprint "Tried Model, Depth: " depth " Got equation" (vals equation))]
                 ; 1. compile-expression ]
                 ; (println equation)
             
             ; Should I extend the model or not?
             (cond
-              (accept-equation? equations num-model-tests-left models sampled-models)
-              equation
+              (zero? num-model-tests-left)
+              c-equations
+
+              (= (count sampled-models) (count models))
+              c-equations
+
+              (accept-equation? equation subexprs-data)
+              (recur sampled-models (conj c-equations equation) (dec num-model-tests-left))
 
               ; Shall I attempt an extension? Impose hard depth
               (extend? depth equation)
@@ -511,17 +556,18 @@
                                       all-models error-fs equation
                                       var-binding subexprs-data
                                       data depth)
-                    good-extension-found true] ; TODO
+                    ; For each proposed extension incorporate into model, refit model, and sample-a-good-one
+                    sampled-good-extension (rand-nth-categorical good-extensions :score)] ; TODO
 
                   ; If we found a good extension, incorporate into the equations, add this to the list
                   ; and then try a new model
-                  (if true;(good extension-found)
-                      equations;(incorporate-into-model-and-recurse) ; TODO
-                      (recur sampled-models equations (dec num-model-tests-left))))
+                  (if (not (empty? good-extensions))
+                      sampled-good-extension
+                      (recur sampled-models c-equations (dec num-model-tests-left))))
 
               ; If I am not stopping nor extending I should try a new model
               :else
-              (recur sampled-models equations (dec num-model-tests-left))))))]
+              (recur sampled-models c-equations (dec num-model-tests-left))))))]
         
         ; Should I try more subexprs
         (cond

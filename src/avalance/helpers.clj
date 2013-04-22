@@ -25,6 +25,10 @@
         best-index (.indexOf mapped-coll max-val)]
     [(nth coll best-index)]))
 
+(defn reciprocal
+  "1/x"
+  [x] (/ 1 x))
+
 (defn sum
   [coll]
   (reduce + coll))
@@ -34,11 +38,6 @@
   []
   (= (rand-int 2) 1))
 
-; (defn rand-choice
-;   "Choice element from coll"
-;   [coll]
-;   (nth coll (rand-int (count coll))))
-
 (defn rand-choice
   "Choice element from coll"
   [coll]
@@ -46,11 +45,47 @@
     (do 
       (nth coll i))))
 
-; TODO
-(defn rand-choice-weighted
-  "Choice element from coll"
-  [coll weights]
-  (nth coll (rand-int (count coll) 1)))
+(defn NaN?
+  "Test if this number is nan"
+  [x]
+  ; Nan is the only value for which equality is false
+  (false? (== x x)))
+
+(defn rand-nth-categorical
+  "Categorical distribution - choose element from list. Coll is vector of maps
+  e.g. [{:somedata 'data :weight 10} ...]"
+  [coll weight-key]
+  (let [clean-coll (filter #(not (NaN? (weight-key %1))) coll) ; Get rid of NaN costs
+        ok (println "CLEANING YO COUNTS BEFORE AND AFTGER:" (count coll) (count clean-coll))
+        total-weight (sum (map #(weight-key %1) clean-coll))
+        sorted-coll (sort-by weight-key > clean-coll)
+        rand-point (rand total-weight)]
+    (loop [clean-coll-loop clean-coll accum-weight 0.0]
+      (if (>= (+ accum-weight (weight-key (first clean-coll-loop))) rand-point)
+        (first clean-coll-loop)
+        (recur (rest clean-coll-loop) (+ accum-weight (weight-key (first clean-coll-loop))))))))
+
+(defn rand-nth-negative-categorical
+  "Categorical distribution - choose element from list. Coll is vector of maps
+  e.g. [{:somedata 'data :weight 10} ...]"
+  [coll weight-key]
+  (let [clean-coll (filter #(not (NaN? (weight-key %1))) coll)
+        zero-cost-coll (filter #(zero? (weight-key %1)) clean-coll)
+        sample
+        (if (empty? zero-cost-coll)
+            (let [sorted-coll (sort-by weight-key < clean-coll)
+                  total-weight (sum (map #(reciprocal (weight-key %1)) clean-coll))
+                  ok (println "actual-total" total-weight)
+                  rand-point (rand total-weight)]
+                  (loop [clean-coll-loop clean-coll accum-weight 0.0]
+                    (if (>= (+ accum-weight (reciprocal (weight-key (first clean-coll-loop))))
+                            rand-point)
+                      (first clean-coll-loop)
+                      (recur (rest clean-coll-loop)
+                             (+ accum-weight (reciprocal 
+                                                 (weight-key (first clean-coll-loop))))))))
+            (rand-nth zero-cost-coll))]
+    sample))
 
 (defn square
 	"x^2"
