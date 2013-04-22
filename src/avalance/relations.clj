@@ -32,7 +32,10 @@
 ; A PCFG is problematic, I want to try simple things first
 
 ; Before I tear everything down I should make this do what it intended to do
-; 1. Stop doing completely stupid things
+; 1. Constriant find-expressio to just function relationships
+; 2. Do it for all extensions
+; 3. roll extensions back into model
+; 
 ; 2. Get data back out from inner loops
 ; 3. Stop when I think I have a solution
 ; 4. Make better decisions - simple one
@@ -445,12 +448,13 @@
             (recur good-extensions (dec num-tries-left))
 
             ; Otherwise let's see if we can make a fit the extension by recursing with
-            (let [expr-constraints (make-expr-constraints (:ext-vars extended-expr)) 
+            (let [;expr-constraints (map make-expr-constraints (:ext-vars extended-expr))
+                  expr-constraints (make-expr-constraints (:ext-vars extended-expr)) 
                   compound-data (merge (zipmap (:ext-vars extended-expr) extension-data) data subexprs-data)
                   prefixprint (apply str (repeat depth "  "))
                   ok (println prefixprint "Found could fit extension to data - Recursing to find expression for extension" (:as-expr-ext extended-expr))
                   extension (find-expr compound-data all-models error-fs (inc depth) expr-constraints)
-                  ; okok (println "println prefixprint FOUND THIS EXTENSION YO" extension)
+                  okok (println "println prefixprint FOUND THIS EXTENSION YO" extension)
                   ]
                   ; (println "ARE"extension)
                   (if true ;TOOD extension is good?
@@ -469,15 +473,11 @@
         (recur sampled-models models data)
         proposed-model)))
 
-(defn continue?
-  "Should we continue down this path"
-  [score model num-tests-left])
-
 (defn accept-equation?
   [equation data]
-  (println "EQUATION" equation)
+  ; (println "EQUATION" equation)
   (cond
-    (< (:score equation) 5) true
+    (< (:score equation) 0.05) true
 
     :else false))
 
@@ -485,10 +485,10 @@
 (defn extend?
   "Should we extend?"
   [depth equation]
-  (println "extend? score is" (:score equation) " Depth:" depth)
+  ; (println "extend? score is" (:score equation) " Depth:" depth)
   (if (and (not (NaN? (:score equation))) ;TODO: This is because we sometimes get NaNs 
           (< depth 1)
-          (< (:score equation) 50)) ;TODO- ARBITRARY NUMBER HERE
+          (< (:score equation) 10)) ;TODO- ARBITRARY NUMBER HERE
       true
       false))
 
@@ -498,6 +498,8 @@
 
   (cond
     (zero? num-plots-left) false
+
+    (empty? equations) true
 
     ; Stop recursing if any of them are really good
     (some #(accept-equation? %1 'fix) equations)
@@ -527,10 +529,11 @@
             {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
             ok (println "\n" prefixprint "Sub-expressions:" num-subexprs (keys subexprs-data))
             equations
-        (conj equations
+        (into equations
         ; Loop through different models return set of
         (loop [sampled-models [] c-equations [] num-model-tests-left (count models)]
-          (let [model (sample-model sampled-models models subexprs-data)
+          (let [okok (println "C-EQUATIONS" c-equations)
+                model (sample-model sampled-models models subexprs-data)
                 sampled-models (conj sampled-models model)
                 var-binding (bind-data-to-model subexprs-data model)
                 equation (fit-model subexprs-data model var-binding)
@@ -562,7 +565,7 @@
                   ; If we found a good extension, incorporate into the equations, add this to the list
                   ; and then try a new model
                   (if (not (empty? good-extensions))
-                      sampled-good-extension
+                      (conj c-equations sampled-good-extension)
                       (recur sampled-models c-equations (dec num-model-tests-left))))
 
               ; If I am not stopping nor extending I should try a new model
@@ -642,23 +645,9 @@
 (def data (gen-data-uniform x-squared 1 100 10))
 ; (def subsexprs (gen-subexprs data 2))
 
-; (def okb (:subexprs-data subsa))
-; (println "C" (bind-data-to-model okb linear-model))
-
-; ; (println "oakdaok" (first okb));(concat (:vars (first okb))  (:vars (second okb))))
-
-; (println "OK" (reduce #(concat (:vars %1) (:vars %2)) okb))
-
-(find-expr data models error-fs 0 (fn [x y] true)) 
+(println "\n\nTHE SOLUTION IS:" (find-expr data models error-fs 0 (fn [x y] true)))
 
 (defn -main[])
-
-; (defn -main
-;   []
-;   ;1. Generate data 
-;   (let [data (gen-data-uniform a-little-complex 1 100 10)]
-;         ; model-weights (subvec (vec (sort-by :cost (find-expr data models))) 0 5)]
-;     data))
 
 ; (require 'avalance.relations)
 ; (use 'clojure.tools.trace)
