@@ -30,6 +30,14 @@
   [coll k]
   (map (fn [m] (m k)) coll))
 
+
+(defn extract-in
+  "For list of maps, extract a key
+  (extract-in [{:a {:b 'c}} {:a {:b 'd}}] [:a :b])
+  => (c d)"
+  [coll ks]
+  (map (fn [m] (get-in m ks)) coll))
+
 (defn reciprocal
   "1/x"
   [x] (/ 1 x))
@@ -60,20 +68,6 @@
   [x]
   ; Nan is the only value for which equality is false
   (false? (== x x)))
-
-; (defn rand-nth-categorical
-;   "Categorical distribution - choose element from list. Coll is vector of maps
-;   e.g. [{:somedata 'data :weight 10} ...]"
-;   [coll weight-key]
-;   (let [clean-coll (filter #(not (NaN? (weight-key %1))) coll) ; Get rid of NaN costs
-;         ok (println "CLEANING YO COUNTS BEFORE AND AFTGER:" (count coll) (count clean-coll))
-;         total-weight (sum (map #(weight-key %1) clean-coll))
-;         sorted-coll (sort-by weight-key > clean-coll)
-;         rand-point (rand total-weight)]
-;     (loop [clean-coll-loop sorted-coll(ran) accum-weight 0.0]
-;       (if (>= (+ accum-weight (weight-key (first clean-coll-loop))) rand-point)
-;         (first clean-coll-loop)
-;         (recur (rest clean-coll-loop) (+ accum-weight (weight-key (first clean-coll-loop))))))))
 
 (defn rand-nth-reciprocal-categorical
   "Categorical distribution - choose element from list. Coll is vector of maps
@@ -116,28 +110,12 @@
   [seq elm]  
   (some #(= elm %) seq))
 
-(defn memoize-n
-  "Returns a memoized version of a referentially transparent function. The
-  memoized version of the function keeps a cache of  the mapping from arguments
-  to results and, when calls with the same arguments are repeated often, has
-  higher performance at the expense of higher memory use."
-  {:added "1.0"
-   :static true}
-  [f n]
-  (let [mem (atom {})]
-    (fn [& args]
-      (if-let [e (find @mem args)]
-        (val e)
-        (let [ret (apply f args)]
-          (swap! mem assoc args ret)
-          ret)))))
-
 ; Returns map of key-list to element at that place .e.g {[1 2 1] 'y, ...}
 (defn coll-to-keys
-  "Find nested keys to elements in map, ignore whose where ignore-elem is true"
+  "Find nested keys to elements in map, ignore those where ignore-elem is true"
   [coll ignore-elem?]
 
-  ((fn breadth-first [coll all-keys base-keys pos]
+  ((fn depth-first [coll all-keys base-keys pos]
           ; (println "eq" equation "all-keys" all-keys "base-keys" base-keys "pos" pos)
           (cond
             (empty? coll)
@@ -150,7 +128,7 @@
             ; If it's a list add both the list AND recurse on the innards of the list
             (list? (first coll))
             (let [list-key {(conj base-keys pos) (first coll)}
-                  inner-keys (breadth-first (first coll) all-keys (conj base-keys pos) 0)]
+                  inner-keys (depth-first (first coll) all-keys (conj base-keys pos) 0)]
               (recur (rest coll) (merge list-key inner-keys) base-keys (inc pos)))
 
             :else
@@ -160,6 +138,37 @@
                    (inc pos))))
 
   coll {} [] 0))
+
+(defn gen-until [f p]
+  (let [x (f)]
+    (if (p x) x (recur f p))))
+
+(defn walk-msg
+  [f coll]
+  "Performs a depth first, search on coll
+  f:elm X message is applied to each nonlist element of coll
+  and the message is passed along
+  f must return {:elm element :msg message}"
+  ((fn df-search
+    [coll msg f-coll]
+    (cond
+      (empty? coll)
+      {:msg msg :coll f-coll}
+
+      (list? (first coll))
+      (let [{in-coll :coll new-msg :msg} (df-search (first coll) msg '())]
+        (recur (rest coll)
+                new-msg
+                (concat f-coll (list in-coll))))
+
+      :else
+      (let [{new-elm :elm new-msg :msg} (f (first coll) msg)]
+        (recur (rest coll)
+               new-msg
+               (concat f-coll (list new-elm))))))
+
+  coll {} '()))
+
 
 ; (deftest coll-to-keys-test
 ;   (let [data '(= (+ y 2) (+ (sin (/ x 2)) 3))

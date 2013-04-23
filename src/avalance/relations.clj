@@ -1,7 +1,8 @@
 ; Symbolic Regression with good proposals
 (ns avalance.relations
   (:require [clojure.math.combinatorics :as combo])
-  (:use clojure.test))
+  (:use clojure.test)
+  (:use clojure.walk))
 
 (use 'clojure.math.numeric-tower)
 (use 'avalance.equations)
@@ -47,7 +48,6 @@
 ; When error as fraction o fdata
 ; Ensure variable binding is correct
 ; Ensure that the constraint is mot modified
-
 
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform
@@ -158,8 +158,8 @@
 ; Problem is that if I just try to generate 1
 ; And i've already seen e0
 ; I only want to generate one once
-
 (defn extension-var?
+  "Is this symbol an extension var?"
   [symb]
   (and (symbol? symb)
         (.startsWith (name symb) "e")))
@@ -222,6 +222,13 @@
 
          :subexprs-data
          expr-exprs-data})))
+
+(defn gen-subexprs-data
+  "Generate data from subexpressions and data"
+  [data subexprs]
+  (println "GENERATING!! Data" data "Subexprs" subexprs)
+  (zipmap subexprs
+          (map #(transform-data (build-expr-metadata % (keys data)) data) subexprs)))
 
 (defn sum-sqr-error
   "Take a model and a dataset and produce a function which when given a set of 
@@ -425,7 +432,6 @@
 
     {:as-expr-ext extended-expr :ext-vars extension-vars}))
 
-
 ; RECURSING WITH DATA ((Math/cos b) b a e1 e0)
 ; GENERATING EXPRESSIONS 2
 ; TESTING CONSTRAINTS MOFO e1 () true
@@ -542,14 +548,13 @@
 (defn try-more-subexprs?
   [equations num-plots-left]
   (println "Try More Subexpressions? Current Equations:" equations)
-
   (cond
     (zero? num-plots-left) false
 
     (empty? equations) true
 
     ; Stop recursing if any of them are really good
-    (some #(accept-equation? %1 'fix) equations)
+    (some #(accept-equation? %1 'FIXME) equations)
     false
 
     :else true))
@@ -558,7 +563,60 @@
 (defn add-ext-to-model
   "incorporate an extension into a model"
   [model extension expr]
-  (println "INCORPORATING MODEL" model "\nEXTENSION " extension "expr" expr))
+  (println "INCORPORATING MODEL" model "\nEXTENSION " extension "expr" expr)
+  (let [
+  updated-exts
+  ; For every extension var find its expression with vars/params updated to avoid conflicts
+  (map (fn [ext-var]
+          ; First find the relative extension equation for this extension var
+          (let [ext (first (filter (fn [eq]
+                                    (let [indep-var (nth (:as-expr eq) 1)
+                                          indep-var-bind ((:var-binding eq) indep-var)]
+                                          (= indep-var-bind ext-var)))
+                            extension))
+                ; Then get the extended expression RHS
+                ext-expr-rhs (nth (:as-expr ext) 2)
+                ; Update this expression - For each sybmol
+                new-ext-expr-rhs (walk-msg (fn [elm msg]
+                                             (cond
+
+                                             ; Is it a parameter? if so we need to rename
+                                             ; to avoid name clashe, names n
+                                             (in? (:params ext) elm)
+                                             (let [new-elm (gen-until #(symbol (str elm "-" ext-var "-" (rand-int 10000)))
+                                                                      #(not (in? (:params model) %)))
+                                                   param-value (elm (:param-values ext))
+                                                   param-values {:param-values {new-elm param-value}}
+                                                   msg (merge-with #(merge %1 %2) msg param-values)]
+                                             {:elm new-elm :msg msg})
+                                             
+
+                                             (in? (:vars ext) elm)
+                                             (let [new-elm (gen-until #(symbol (str elm "-" ext-var "-" (rand-int 10000)))
+                                                                      #(not (in? (:vars model) %)))
+                                                   var-binding ((:var-binding ext) elm)
+                                                   bind {:var-binding {new-elm var-binding}}
+                                                   msg (merge-with #(merge %1 %2) msg bind)]
+                                             {:elm new-elm :msg msg})
+
+                                             :else
+                                             {:elm elm :msg msg}))
+                                  ext-expr-rhs)]
+                new-ext-expr-rhs))
+    
+    (:ext-vars expr))
+    ok (println "UPDATED EXTS" updated-exts)
+    var-binding (merge (model :var-binding)
+                       (reduce merge (extract-in updated-exts [:msg :var-binding])))
+    param-values (merge (model :param-values)
+                       (reduce merge (extract-in updated-exts [:msg :param-values])))
+    smap (zipmap (:ext-vars expr) (extract updated-exts :coll))
+    final-expr (postwalk-replace smap (:as-expr-ext expr))]
+    {:var-binding var-binding :vars (keys var-binding)
+     :param-values param-values :params (keys param-values)
+     :as-expr final-expr}))
+  ;1. for each ext-var
+      ; Find the relevant extension in extension)
 
 ; TODO- Depth control of extensions
 (defn find-expr
@@ -616,16 +674,22 @@
                       (let [good-extensions (keys good-extensions-all)
                             good-ext-exprs (vals good-extensions-all)
                             ;For each proposed extension incorporate into model, refit model, and sample-a-good-
-                            whatwhat (println "SAMPLED_EAA" good-extensions "\n")
+                            whatwhat (println "Found good Extensions" good-extensions "\n")
                             weights (map (fn [ext] (println "EXT SIZE" ext) (mean (extract ext :score)))
                                           good-extensions)
                             sampled-good-extension (rand-nth-reciprocal-categorical good-extensions weights)
                             good-ext-expr (good-extensions-all sampled-good-extension)
-                            extended-model (add-ext-to-model equation sampled-good-extension good-ext-expr)]
+                            extended-model (add-ext-to-model equation sampled-good-extension good-ext-expr)
+                            ok (println "extended model Final" extended-model)
+                            ;new-vars (println "NEWVARS!!" (:vars extended-model))
+                            new-subexprs-data (gen-subexprs-data data (vals (:var-binding extended-model)))
+                            ko (println "NEWDATA" new-subexprs-data)
+                            extended-model-refit (fit-model new-subexprs-data extended-model (:var-binding extended-model))
+                            ok (println "Scored extended model Final" extended-model-refit)]
 
                         ; If we found a good extension, incorporate into the equations, add this to the list
                         ; and then try a new model
-                        (recur sampled-models (conj c-equations extended-model) (dec num-model-tests-left)))))
+                        (recur sampled-models (conj c-equations extended-model-refit) (dec num-model-tests-left)))))
 
               ; If I am not stopping nor extending I should try a new model
               :else
