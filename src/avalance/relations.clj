@@ -469,7 +469,7 @@
 (defn find-good-extensions
   "Find some good extensions"
   [model all-models error-fs equation var-binding subexprs-data data depth]
-  (loop [good-extensions [] num-tries-left 10]
+  (loop [good-extensions {} num-tries-left 10]
     (cond
       (zero? num-tries-left)
       good-extensions
@@ -505,7 +505,7 @@
                   okok (println "Found Extensions2:" extensions "END")]
                   ; (println "ARE"extension)
                   (if found-ext-all-vars ;TOOD extension is good?
-                  (recur (conj good-extensions extensions) (dec num-tries-left))
+                  (recur (merge good-extensions {extensions extended-expr}) (dec num-tries-left))
                   (recur good-extensions (dec num-tries-left)))))))))
 
 ; Selection of models should be based on the data, and the available models
@@ -555,7 +555,10 @@
     :else true))
 
 ; If we are to say a model is a set of equations then well, a lot of this structure need be updated
-
+(defn add-ext-to-model
+  "incorporate an extension into a model"
+  [model extension expr]
+  (println "INCORPORATING MODEL" model "\nEXTENSION " extension "expr" expr))
 
 ; TODO- Depth control of extensions
 (defn find-expr
@@ -604,24 +607,25 @@
 
               ; Shall I attempt an extension? Impose hard depth
               (extend? depth equation)
-              (let [good-extensions (find-good-extensions model
+              (let [good-extensions-all (find-good-extensions model
                                       all-models error-fs equation
                                       var-binding subexprs-data
-                                      data depth)
-                    ; For each proposed extension incorporate into model, refit model, and sample-a-good-
-                    whatwhat (println "SAMPLED_EAA" good-extensions "\n")
+                                      data depth)]
+                    (if (empty? good-extensions-all)
+                      (recur sampled-models c-equations (dec num-model-tests-left))
+                      (let [good-extensions (keys good-extensions-all)
+                            good-ext-exprs (vals good-extensions-all)
+                            ;For each proposed extension incorporate into model, refit model, and sample-a-good-
+                            whatwhat (println "SAMPLED_EAA" good-extensions "\n")
+                            weights (map (fn [ext] (println "EXT SIZE" ext) (mean (extract ext :score)))
+                                          good-extensions)
+                            sampled-good-extension (rand-nth-reciprocal-categorical good-extensions weights)
+                            good-ext-expr (good-extensions-all sampled-good-extension)
+                            extended-model (add-ext-to-model equation sampled-good-extension good-ext-expr)]
 
-                    weights (map (fn [ext] (println "EXT SIZE" ext) (mean (extract ext :score)))
-                                  good-extensions)
-
-                    sampled-good-extension (rand-nth-reciprocal-categorical good-extensions weights)
-                    ok (println "GREAT SAMPLE!" sampled-good-extension)] ; TODO
-
-                  ; If we found a good extension, incorporate into the equations, add this to the list
-                  ; and then try a new model
-                  (if (not (empty? good-extensions))
-                      (conj c-equations sampled-good-extension)
-                      (recur sampled-models c-equations (dec num-model-tests-left))))
+                        ; If we found a good extension, incorporate into the equations, add this to the list
+                        ; and then try a new model
+                        (recur sampled-models (conj c-equations extended-model) (dec num-model-tests-left)))))
 
               ; If I am not stopping nor extending I should try a new model
               :else
