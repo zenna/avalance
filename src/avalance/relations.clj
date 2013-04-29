@@ -20,48 +20,19 @@
 ; Do not repeat model
 ; Im overriding e0 sometimes
 
-; Current Problems
-; I am repeating tests which provide no added information
-; I am making too many arbitrary decisions
-; - When to decide to continue searching for an extension
-; - When to decide to continue/ searching for an equation
-; - When to think a model is good enough to pursue
-
-; My recognition is based on trying a bunch of things, I need something more principled
-
-; Adding a new procedure involves reforming the code drastically
-; A PCFG is problematic, I want to try simple things first
-
-; Before I tear everything down I should make this do what it intended to do
-; 1. Constriant find-expressio to just function relationships
-; -- prevent e1 / e0 in rhs
-; -- variable binding
-; 2. Do it for all extensions
-; 3. roll extensions back into model
-; 
-; 2. Get data back out from inner loops
-; 3. Stop when I think I have a solution
-; 4. Make better decisions - simple one
-
-; Still trying too many stupid things
-; Not stopping when I find an answer
-; When error as fraction o fdata
-; Ensure variable binding is correct
-; Ensure that the constraint is mot modified
-
 ; Returns two vectors or tuples for each datapoint
 (defn gen-data-uniform
   "Uniformly generates real valued data from function"
   [f min-val max-val num-samples]
-  (cond (< max-val min-val)
-      (throw (Exception. "max-val must be greater than min-val"))
+  {:pre [(> max-val min-val)]}
+  (loop [x min-val xs [] fxs []]
+    (cond (> x max-val)
+    {'a xs 'b fxs}
+    
     :else
-      (loop [x min-val xs [] fxs []]
-        (cond (> x max-val)
-          {'a xs 'b fxs}
-        :else
-          (recur (+ x (/ (- max-val min-val) num-samples)) (concat xs [x]) (concat fxs [(f x)]))
-        ))))
+    (recur (+ x (/ (- max-val min-val) num-samples))
+           (concat xs [x])
+           (concat fxs [(f x)])))))
 
 ; FIXME: It could be that the data covaries in wuch a way that function
 (defn expr-covaries?
@@ -130,7 +101,6 @@
     (vec (for [symb data-vars
           :when (in? flat-expr symb)]
       symb))]
-    ; (println "EXPR" expr  "VARS" vars-in-expr "DATAVARS" data-vars "FLAT "flat-expr "LISt?" (symbol? expr) )
     ; We need to find out which data variables are actually in the expression
     {:as-expr expr
      :as-lambda (make-lambda-args expr vars-in-expr)
@@ -143,7 +113,6 @@
   "Make evaluable model rhs/lhs"
   [expr & args]
   ; 1. find out which of the vars or params are in the subexpr
-  ; (println "EXPR" expr "args" args)
   (let [flat-expr (if (symbol? expr) (list expr) (flatten expr))
         vars-in-expr
           (vec (for [symb (reduce concat args)
@@ -155,11 +124,9 @@
 
 (def make-model-lambda (memoize make-model-lambda-unmem))
 
-; Problem is that if I just try to generate 1
-; And i've already seen e0
-; I only want to generate one once
 (defn extension-var?
-  "Is this symbol an extension var?"
+  "Is this symbol an extension var?
+  (i.e. does it start with an e)"
   [symb]
   (and (symbol? symb)
         (.startsWith (name symb) "e")))
@@ -226,7 +193,6 @@
 (defn gen-subexprs-data
   "Generate data from subexpressions and data"
   [data subexprs]
-  (println "GENERATING!! Data" data "Subexprs" subexprs)
   (zipmap subexprs
           (map #(transform-data (build-expr-metadata % (keys data)) data) subexprs)))
 
@@ -272,15 +238,6 @@
 
             (recur (+ accum-error (Math/pow error 2))
                    (inc index))))))))
-
-; (defn data-range
-;   ""
-;   )
-
-; How to know when to extend a model?
-; Think its like a sine wave but not
-; The reality is in seeing what its like and what way its not like that
-; What way is it not like that
 
 (defn cost-to-score
   "convert a cost to a score"
@@ -430,12 +387,10 @@
                   new-equation (replace-in-sublist modified-equation key-to-change rand-replacement)]
               (recur new-equation (inc extension-num)))))]
 
-    {:as-expr-ext extended-expr :ext-vars extension-vars}))
+    ; TODO: We need a better way to stop latter extensions overriding previous ones
+    ; Hack for now: just check which extensions actually end up in the expression
+    {:as-expr-ext extended-expr :ext-vars (filter #(in? (flatten extended-expr) %) extension-vars)}))
 
-; RECURSING WITH DATA ((Math/cos b) b a e1 e0)
-; GENERATING EXPRESSIONS 2
-; TESTING CONSTRAINTS MOFO e1 () true
-; TESTING CONSTRAINTS MOFO (- b e1) (e1) true
 (defn make-expr-constraints
   [exprs-constraints]
   "Create a function which checks a given expression and previously
@@ -507,8 +462,9 @@
                   ok (println prefixprint "Found could fit extension to data - Recursing to find expression for extension" (:as-expr-ext extended-expr))
                   ; extension (find-expr compound-data all-models error-fs (inc depth) expr-constraints)
                   found-ext-all-vars (not-any? nil? extensions)
-                  okok (println "Found Extensions:" (count extensions) "END")
-                  okok (println "Found Extensions2:" extensions "END")]
+                  ; okok (println "Found Extensions:" (count extensions) "END")
+                  ; okok (println "Found Extensions2:" extensions "END")
+                  ]
                   ; (println "ARE"extension)
                   (if found-ext-all-vars ;TOOD extension is good?
                   (recur (merge good-extensions {extensions extended-expr}) (dec num-tries-left))
@@ -539,7 +495,7 @@
   "Should we extend?"
   [depth equation]
   ; (println "extend? score is" (:score equation) " Depth:" depth)
-  (if (and (not (NaN? (:score equation))) ;TODO: This is because we sometimes get NaNs 
+  (if (and (not (NaN? (:score equation))) ;This is because we sometimes get NaNs 
           (< depth 1)
           (< (:score equation) 10)) ;TODO- ARBITRARY NUMBER HERE
       true
@@ -547,7 +503,7 @@
 
 (defn try-more-subexprs?
   [equations num-plots-left]
-  (println "Try More Subexpressions? Current Equations:" equations)
+  ; (println "Try More Subexpressions? Current Equations:" equations)
   (cond
     (zero? num-plots-left) false
 
@@ -563,7 +519,7 @@
 (defn add-ext-to-model
   "incorporate an extension into a model"
   [model extension expr]
-  (println "INCORPORATING MODEL" model "\nEXTENSION " extension "expr" expr)
+  ;(println "INCORPORATING MODEL" model "\nEXTENSION " extension "expr" expr)
   (let [
   updated-exts
   ; For every extension var find its expression with vars/params updated to avoid conflicts
@@ -605,7 +561,7 @@
                 new-ext-expr-rhs))
     
     (:ext-vars expr))
-    ok (println "UPDATED EXTS" updated-exts)
+    ;ok (println "UPDATED EXTS" updated-exts)
     var-binding (merge (model :var-binding)
                        (reduce merge (extract-in updated-exts [:msg :var-binding])))
     param-values (merge (model :param-values)
@@ -618,7 +574,11 @@
   ;1. for each ext-var
       ; Find the relevant extension in extension)
 
-; TODO- Depth control of extensions
+(defn compile-expr
+  "Compile data and parameters into expression"
+  [expr]
+  (postwalk-replace (merge (:var-binding expr) (:param-values expr)) (:as-expr expr)))
+
 (defn find-expr
   "Searches for an expression"
   [data all-models error-fs depth mandatory-exprs]
@@ -641,59 +601,61 @@
         (into equations
         ; Loop through different models return set of
         (loop [sampled-models [] c-equations [] num-model-tests-left (count models)]
-          (let [;okok (println "C-EQUATIONS" c-equations)
-                model (sample-model sampled-models models subexprs-data)
-                sampled-models (conj sampled-models model)
-                var-binding (bind-data-to-model subexprs-data model mandatory-exprs)
-                ; whaa (println "VARBINDING" var-binding)
-                equation (fit-model subexprs-data model var-binding)
-                ; ok (println prefixprint "TRIED MODEL" (vals (:model equation)) (:cost equation))
-                okS (println prefixprint "Tried Model, Depth: " depth " Got equation" (vals equation))]
-                ; 1. compile-expression ]
-                ; (println equation)
-            
-            ; Should I extend the model or not?
-            (cond
-              (zero? num-model-tests-left)
-              c-equations
+          (cond
+            (zero? num-model-tests-left)
+            c-equations
 
-              (= (count sampled-models) (count models))
-              c-equations
+            (= (count sampled-models) (count models))
+            c-equations
 
-              (accept-equation? equation subexprs-data)
-              (recur sampled-models (conj c-equations equation) (dec num-model-tests-left))
+            :else
+            (let [;okok (println "C-EQUATIONS" c-equations)
+                  model (sample-model sampled-models models subexprs-data)
+                  sampled-models (conj sampled-models model)
+                  var-binding (bind-data-to-model subexprs-data model mandatory-exprs)
+                  ; whaa (println "VARBINDING" var-binding)
+                  equation (fit-model subexprs-data model var-binding)
+                  ; ok (println prefixprint "TRIED MODEL" (vals (:model equation)) (:cost equation))
+                  okS (println prefixprint "Tried Model, Depth: " depth " Got equation" (vals equation))]
+                  ; 1. compile-expression ]
+                  ; (println equation)
+              
+              ; Should I extend the model or not?
+              (cond
+                (accept-equation? equation subexprs-data)
+                (recur sampled-models (conj c-equations equation) (dec num-model-tests-left))
 
-              ; Shall I attempt an extension? Impose hard depth
-              (extend? depth equation)
-              (let [good-extensions-all (find-good-extensions model
-                                      all-models error-fs equation
-                                      var-binding subexprs-data
-                                      data depth)]
-                    (if (empty? good-extensions-all)
-                      (recur sampled-models c-equations (dec num-model-tests-left))
-                      (let [good-extensions (keys good-extensions-all)
-                            good-ext-exprs (vals good-extensions-all)
-                            ;For each proposed extension incorporate into model, refit model, and sample-a-good-
-                            whatwhat (println "Found good Extensions" good-extensions "\n")
-                            weights (map (fn [ext] (println "EXT SIZE" ext) (mean (extract ext :score)))
-                                          good-extensions)
-                            sampled-good-extension (rand-nth-reciprocal-categorical good-extensions weights)
-                            good-ext-expr (good-extensions-all sampled-good-extension)
-                            extended-model (add-ext-to-model equation sampled-good-extension good-ext-expr)
-                            ok (println "extended model Final" extended-model)
-                            ;new-vars (println "NEWVARS!!" (:vars extended-model))
-                            new-subexprs-data (gen-subexprs-data data (vals (:var-binding extended-model)))
-                            ko (println "NEWDATA" new-subexprs-data)
-                            extended-model-refit (fit-model new-subexprs-data extended-model (:var-binding extended-model))
-                            ok (println "Scored extended model Final" extended-model-refit)]
+                ; Shall I attempt an extension? Impose hard depth
+                (extend? depth equation)
+                (let [good-extensions-all (find-good-extensions model
+                                        all-models error-fs equation
+                                        var-binding subexprs-data
+                                        data depth)]
+                      (if (empty? good-extensions-all)
+                        (recur sampled-models c-equations (dec num-model-tests-left))
+                        (let [good-extensions (keys good-extensions-all)
+                              good-ext-exprs (vals good-extensions-all)
+                              ;For each proposed extension incorporate into model, refit model, and sample-a-good-
+                              whatwhat (println "Found good Extensions" good-extensions "\n")
+                              weights (map (fn [ext] (mean (extract ext :score)))
+                                            good-extensions)
+                              sampled-good-extension (rand-nth-reciprocal-categorical good-extensions weights)
+                              good-ext-expr (good-extensions-all sampled-good-extension)
+                              extended-model (add-ext-to-model equation sampled-good-extension good-ext-expr)
+                              ok (println "extended model Final" extended-model)
+                              ;new-vars (println "NEWVARS!!" (:vars extended-model))
+                              new-subexprs-data (gen-subexprs-data data (vals (:var-binding extended-model)))
+                              ;ko (println "NEWDATA" new-subexprs-data)
+                              extended-model-refit (fit-model new-subexprs-data extended-model (:var-binding extended-model))
+                              ok (println "Scored extended model Final" extended-model-refit)]
 
-                        ; If we found a good extension, incorporate into the equations, add this to the list
-                        ; and then try a new model
-                        (recur sampled-models (conj c-equations extended-model-refit) (dec num-model-tests-left)))))
+                          ; If we found a good extension, incorporate into the equations, add this to the list
+                          ; and then try a new model
+                          (recur sampled-models (conj c-equations extended-model-refit) (dec num-model-tests-left)))))
 
-              ; If I am not stopping nor extending I should try a new model
-              :else
-              (recur sampled-models c-equations (dec num-model-tests-left))))))]
+                ; If I am not stopping nor extending I should try a new model
+                :else
+                (recur sampled-models c-equations (dec num-model-tests-left)))))))]
         
         ; Should I try more subexprs
         (cond
@@ -707,8 +669,8 @@
 ; Parameters are values to be optmised
 ; Whereas variables come from compounds of data
 (def exponent-model
-  {:as-expr '(= y (Math/pow b x))
-  :params ['b]
+  {:as-expr '(= y (Math/pow pb x))
+  :params ['pb]
   :vars ['y 'x]
   :name 'exponent})
 
@@ -725,8 +687,8 @@
    :name 'linear})
 
 (def sin-model
-  {:as-expr '(= y (Math/sin x))
-   :params []
+  {:as-expr '(= y (Math/sin (* x p)))
+   :params ['p]
    :vars ['y 'x]
    :name 'sin})
 
@@ -762,13 +724,14 @@
 
 (defn a-little-complex
   [x]
-  (+ (* x x) (* (Math/sin x) 3)))
+  (+ x  (* (Math/sin (* 2 x)) 3)))
+(def data (gen-data-uniform x-squared -20.4 18.10 20))
+(println "Data Is" data)
+(def sols (find-expr data models error-fs 0 []))
 
-(def dt {'a [1 2 3] 'b [10 14 12]})
-(def data (gen-data-uniform x-squared 1 100 10))
-; (def subsexprs (gen-subexprs data 2))
+(println "\n\nThe unformatted solutions are:" sols)
 
-(println "\n\nTHE SOLUTION IS:" (find-expr data models error-fs 0 []))
+(println "\n\nThe formatted solutions are:" (map compile-expr sols))
 
 (defn -main[])
 
