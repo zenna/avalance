@@ -722,10 +722,14 @@
   [x]
   (+ (* x x) (Math/sin x)))
 
+(defn two-sin-x
+  [x]
+  (+ (* 2 (Math/sin x))))
+
 (defn a-little-complex
   [x]
   (+ x  (* (Math/sin (* 2 x)) 3)))
-(def data (gen-data-uniform x-squared -20.4 18.10 20))
+(def data (gen-data-uniform line 10 100.0 50))
 (println "Data Is" data)
 (def sols (find-expr data models error-fs 0 []))
 
