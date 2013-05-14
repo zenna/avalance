@@ -688,12 +688,14 @@
 
 (def sin-model
   {:as-expr '(= y (Math/sin (* x p)))
+   :param-sampler {'p rand}
    :params ['p]
    :vars ['y 'x]
    :name 'sin})
 
 (def constant-model
   {:as-expr '(= y k)
+   :param-sampler {'k #(* 100 rand)}
    :params ['k]
    :vars ['y]
    :name 'constant})

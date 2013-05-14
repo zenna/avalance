@@ -1,34 +1,5 @@
 (ns avalance.equations)
 
-(defn frequency
-	[period]
-  (/ 1 period))
-
-(defn energy
-  [mass]
-  (* mass (* 3E8 3E8)))
-
-(defn e1
-  [p1]
-  (+ 10 (* p1 p1)))
-
-; Constant
-(defn e2
-  [p1]
-  10)
-
-; ok
-(defn e3
-  [p1]
-  (+ (* p1 p1 p1 5) (* p1 p1 3) (* 9 p1)))
-
-(defn pd
-  "Protected division; returns 0 if the denominator is zero."
-  [num denom]
-  (if (zero? denom)
-    0
-    (/ num denom)))
-
 (defn make-lambda
   [expr]
   (eval (list 'fn '[x] expr)))
@@ -37,15 +8,6 @@
   "Make a function from an expression with some args"
   [expr args]
   (eval (list 'fn args expr)))
-
-; Example attribute
-(defn x-in-denom?
-  [expr]
-  (let [pos-div (.indexOf (flatten expr) '/)]
-    (cond
-      (= pos-div -1) false
-      (= 'x (nth (flatten expr) (+ 2 pos-div))) true
-      :else false)))
 
 ; Probabilstic context free grammar
 (def compound-pcfg
