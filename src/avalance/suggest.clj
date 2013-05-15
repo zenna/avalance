@@ -26,11 +26,10 @@
    to be evaluated we sample these parameters"
    [model]
 
-
 ; FIXME: This can replace extension
-(defn suggest-extension
+(defn suggest-model-extension
   "Suggest an extension to an equation"
-  [equation error-fs]
+  [model error-fs]
   (let [num-extensions (inc (rand-int 2))
         extension-vars (map #(symbol (str "e" %)) (range num-extensions))
         extended-expr
