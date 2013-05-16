@@ -1,5 +1,36 @@
-(ns avalance.suggest
-  (:use avalance.relations))
+(ns ^{:doc "Suggest extensison to some expr."
+      :author "Zenna Tavares"}
+avalance.suggest
+  (:use avalance.grammar))
+
+(defn match-selector
+  "Selects a match.
+  
+  Mutiple patterns may match, and for a given pattern,
+  a variable may match multiple times.  We need to select one.
+  
+  Can not select more than one since replacement might invalidate
+  a matched pattern"
+  [matches]
+  ; two rand-nth, first to select the pattern, then to select the match
+  ; for a pattern
+  {:ptrn 'ALL :match (rand-nth (rand-nth matches))})
+
+(def prob-mod-gram
+  "A probabilstic transformation grammar"
+  {:selector match-selector
+   :pattern-evaluator pattern-evaluator
+   :pattern-rules
+   {'ALL [{:prod '(UF ?match) :weight 1.0}
+          {:prod '(BF V ?match) :weight 1.0}
+          {:prod '(BF ?match V) :weight 1.0}]}
+    :rules
+    {'UF [{:prod 'Math/sin :weight 1.2}
+          {:prod 'Math/cos :weight 1.2}]
+     'BF [{:prod '+   :weight 1.0}
+          {:prod '-   :weight 1.0}
+          {:prod '*   :weight 1.0}
+          {:prod '/   :weight 1.0}]}})
 
 ; Attributes
 ; TODO Definde declarative language here
@@ -7,10 +38,10 @@
 (def periodic? 'is-periodic)
 (def monotonic? 'monotonic?)
 (def attrs-procedures
-  {monotonic (fn [data]
-    )})
+  {monotonic? (fn [data]
+    true)})
 (def all-attrs
-  [is-smooth is-periodic])
+  [smooth? periodic?])
 
 (defn eval-attr
   "Evaluate an attribute"
@@ -24,35 +55,14 @@
 (defn sample-model-instance
   "Models have parameters which have distributions
    to be evaluated we sample these parameters"
-   [model]
+   [model])
 
-; FIXME: This can replace extension
-(defn suggest-model-extension
-  "Suggest an extension to an equation"
-  [model error-fs]
-  (let [num-extensions (inc (rand-int 2))
-        extension-vars (map #(symbol (str "e" %)) (range num-extensions))
-        extended-expr
-        ; Repeatedly reply a modification
-        (loop [modified-equation equation extension-num 0]
-          (if (= num-extensions extension-num)
-            modified-equation
-            ; Ignore first elements of list, which will be function symbols;
-            ; We don't want to replace them as they don't evaluate by themselves to reals
-            (let [all-keys (coll-to-keys equation (fn [elem pos] (or (zero? pos)
-                                                                     (extension-var? elem))))
-                  key-to-change (rand-nth (keys all-keys))
-                  error-f (rand-nth error-fs)
-                  value-at-key (all-keys key-to-change)
-                  ext-name (nth extension-vars extension-num)
-                  rand-replacement (rand-nth [(list error-f value-at-key ext-name)
-                                             (list error-f ext-name value-at-key)])
-                  new-equation (replace-in-sublist modified-equation key-to-change rand-replacement)]
-              (recur new-equation (inc extension-num)))))]
-
-    ; TODO: We need a better way to stop latter extensions overriding previous ones
-    ; Hack for now: just check which extensions actually end up in the expression
-    {:as-expr-ext extended-expr :ext-vars (filter #(in? (flatten extended-expr) %) extension-vars)}))
+(defn gen-data
+  "Generate data from a model.
+  Currently works only with functional models, asuming lhs is dependent
+  variable and rhs independent."
+  [model]
+    
 
 (defn eval-posterior
   "Evaluate the posterior of 'model in expression'"
@@ -60,7 +70,7 @@
   (let [num-gen 100
         ; Generate
         sim-vals (for [i (range num-gen)]
-                      :let [ext-model (suggest-extension model error-fs)]
+                      :let [ext-model (extend-expr (:as-expr model))]
                       (attr-val-compare attr-vals (eval-attr (gen-data ext-model) data)))]
     (mean sim-vals)))
   ; Generate N models where that is true wowho ho hoo
@@ -82,4 +92,3 @@
    and look for those that increase posterior probability.
    Returns attr-vals"
   )
-

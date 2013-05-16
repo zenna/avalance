@@ -142,7 +142,7 @@
         ; Remove extensions from grammar because we dont want recursive definitions
         data-vars-wo-extensions (filter #(not (extension-var? %1)) data-vars)
         data-prods (map (fn [variable] {:prod variable :weight 10000.0}) data-vars-wo-extensions)
-        new-pcfg (add-data-to-pcfg data-prods compound-pcfg)
+        new-pcfg (add-rule-to-pcfg data-prods compound-pcfg 'V)
 
         ; Generate exprs through sample and reject if it fails to adhere to constraints
         expr-exprs-data

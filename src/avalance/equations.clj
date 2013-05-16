@@ -24,10 +24,10 @@
            {:prod '/   :weight 1.0}]
       'V  [{:prod 'F   :weight 1.0}]}})
 
-(defn add-data-to-pcfg
+(defn add-rule-to-pcfg
   "Add variables to V production rule of grammar"
-  [variable-prods pcfg]
-  (update-in pcfg [:rules 'V] (fn [productions] (concat productions variable-prods))))
+  [variable-prods pcfg non-term]
+  (update-in pcfg [:rules non-term] (fn [productions] (concat productions variable-prods))))
 
 (defn sample-production
   "Probabalistically sample a production"
@@ -57,6 +57,24 @@
         :else
           lhs-symb))]
     (inner-loop (:start pcfg))))
+
+(defn gen-expr-pcfg-arb
+  "Generate an expression from a pcfg"
+  [pcfg start-symb]
+  (let [inner-loop (fn il [lhs-symb] 
+      (cond
+        ; Non-terminal? Probabalistically choose transition
+        (contains? (:rules pcfg) lhs-symb)
+          (let [productions ((:rules pcfg) lhs-symb)
+                production (:prod (sample-production productions))]
+            (if (list? production)
+              (map il production)
+              (il production)))
+
+        ; Otherwise it's a terminal
+        :else
+          lhs-symb))]
+    (inner-loop start-symb)))
 
 ; Algorithm sorts weights onto a line and samples from the line
 (defn sample-production

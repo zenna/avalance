@@ -1,12 +1,21 @@
-This is pdfTeX, Version 3.1415926-2.4-1.40.13 (TeX Live 2012/Debian) (format=pdflatex 2013.5.14)  14 MAY 2013 19:16
+This is pdfTeX, Version 3.1415926-2.4-1.40.13 (TeX Live 2012/Debian) (format=pdflatex 2013.5.15)  16 MAY 2013 19:22
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
 **main.tex
 (./main.tex
 LaTeX2e <2011/06/27>
-Babel <v3.8m> and hyphenation patterns for english, dumylang, nohyphenation, lo
-aded.
+Babel <v3.8m> and hyphenation patterns for english, dumylang, nohyphenation, et
+hiopic, farsi, arabic, pinyin, croatian, bulgarian, ukrainian, russian, slovak,
+ czech, danish, dutch, usenglishmax, ukenglish, finnish, french, basque, ngerma
+n, german, swissgerman, ngerman-x-2012-05-30, german-x-2012-05-30, monogreek, g
+reek, ibycus, ancientgreek, hungarian, bengali, tamil, hindi, telugu, gujarati,
+ sanskrit, malayalam, kannada, assamese, marathi, oriya, panjabi, italian, lati
+n, latvian, lithuanian, mongolian, mongolianlmc, nynorsk, bokmal, indonesian, e
+speranto, coptic, welsh, irish, interlingua, serbian, serbianc, slovenian, friu
+lan, romansh, estonian, romanian, armenian, uppersorbian, turkish, afrikaans, i
+celandic, kurmanji, polish, portuguese, galician, catalan, spanish, swedish, th
+ai, loaded.
 (./siamltex.cls
 Document Class: siamltex 1996/10/11 v1.2 LaTeX document class
 (/usr/share/texlive/texmf-dist/tex/latex/base/leqno.clo
@@ -245,7 +254,7 @@ Now handling font encoding U ...
    defining Unicode char U+2122 (decimal 8482)
    defining Unicode char U+2423 (decimal 9251)
 ))
-(/usr/share/texlive/texmf-dist/tex/generic/babel/babel.sty
+(/var/lib/texmf/tex/generic/babel/babel.sty
 Package: babel 2008/07/08 v3.8m The Babel package
 
 (/usr/share/texlive/texmf-dist/tex/generic/babel/english.ldf
@@ -256,8 +265,6 @@ File: babel.def 2008/07/08 v3.8m Babel common definitions
 \babel@savecnt=\count89
 \U@D=\dimen103
 )
-\l@british = a dialect from \language\l@english 
-\l@UKenglish = a dialect from \language\l@english 
 \l@canadian = a dialect from \language\l@american 
 \l@australian = a dialect from \language\l@british 
 \l@newzealand = a dialect from \language\l@british 
@@ -488,50 +495,75 @@ Package graphics Info: Driver file: pdftex.def on input line 91.
 \Gin@req@height=\dimen116
 \Gin@req@width=\dimen117
 )
-(./main.aux)
+(/usr/share/texlive/texmf-dist/tex/latex/listings/listings.sty
+\lst@mode=\count113
+\lst@gtempboxa=\box28
+\lst@token=\toks22
+\lst@length=\count114
+\lst@currlwidth=\dimen118
+\lst@column=\count115
+\lst@pos=\count116
+\lst@lostspace=\dimen119
+\lst@width=\dimen120
+\lst@newlines=\count117
+\lst@lineno=\count118
+\lst@maxwidth=\dimen121
+
+(/usr/share/texlive/texmf-dist/tex/latex/listings/lstmisc.sty
+File: lstmisc.sty 2007/02/22 1.4 (Carsten Heinz)
+\c@lstnumber=\count119
+\lst@skipnumbers=\count120
+\lst@framebox=\box29
+)
+(/usr/share/texlive/texmf-dist/tex/latex/listings/listings.cfg
+File: listings.cfg 2007/02/22 1.4 listings configuration
+))
+Package: listings 2007/02/22 1.4 (Carsten Heinz)
+ (./main.aux)
 \openout1 = `main.aux'.
 
-LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 106.
-LaTeX Font Info:    ... okay on input line 106.
-LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 106.
-LaTeX Font Info:    ... okay on input line 106.
-LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 106.
-LaTeX Font Info:    ... okay on input line 106.
-LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 106.
-LaTeX Font Info:    ... okay on input line 106.
-LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 106.
-LaTeX Font Info:    ... okay on input line 106.
-LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 106.
-LaTeX Font Info:    ... okay on input line 106.
-LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 106.
-LaTeX Font Info:    ... okay on input line 106.
- (/usr/share/texlive/texmf-dist/tex/context/base/supp-pdf.mkii
+LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 108.
+LaTeX Font Info:    ... okay on input line 108.
+LaTeX Font Info:    Checking defaults for T1/cmr/m/n on input line 108.
+LaTeX Font Info:    ... okay on input line 108.
+LaTeX Font Info:    Checking defaults for OT1/cmr/m/n on input line 108.
+LaTeX Font Info:    ... okay on input line 108.
+LaTeX Font Info:    Checking defaults for OMS/cmsy/m/n on input line 108.
+LaTeX Font Info:    ... okay on input line 108.
+LaTeX Font Info:    Checking defaults for OMX/cmex/m/n on input line 108.
+LaTeX Font Info:    ... okay on input line 108.
+LaTeX Font Info:    Checking defaults for U/cmr/m/n on input line 108.
+LaTeX Font Info:    ... okay on input line 108.
+LaTeX Font Info:    Checking defaults for PD1/pdf/m/n on input line 108.
+LaTeX Font Info:    ... okay on input line 108.
+
+(/usr/share/texlive/texmf-dist/tex/context/base/supp-pdf.mkii
 [Loading MPS to PDF converter (version 2006.09.02).]
-\scratchcounter=\count113
-\scratchdimen=\dimen118
-\scratchbox=\box28
-\nofMPsegments=\count114
-\nofMParguments=\count115
-\everyMPshowfont=\toks22
-\MPscratchCnt=\count116
-\MPscratchDim=\dimen119
-\MPnumerator=\count117
-\makeMPintoPDFobject=\count118
-\everyMPtoPDFconversion=\toks23
+\scratchcounter=\count121
+\scratchdimen=\dimen122
+\scratchbox=\box30
+\nofMPsegments=\count122
+\nofMParguments=\count123
+\everyMPshowfont=\toks23
+\MPscratchCnt=\count124
+\MPscratchDim=\dimen123
+\MPnumerator=\count125
+\makeMPintoPDFobject=\count126
+\everyMPtoPDFconversion=\toks24
 )
-\AtBeginShipoutBox=\box29
-Package hyperref Info: Link coloring OFF on input line 106.
+\AtBeginShipoutBox=\box31
+Package hyperref Info: Link coloring OFF on input line 108.
  (/usr/share/texlive/texmf-dist/tex/latex/hyperref/nameref.sty
 Package: nameref 2010/04/30 v2.40 Cross-referencing by name of section
 
 (/usr/share/texlive/texmf-dist/tex/generic/oberdiek/gettitlestring.sty
 Package: gettitlestring 2010/12/03 v1.4 Cleanup title references (HO)
 )
-\c@section@level=\count119
+\c@section@level=\count127
 )
-LaTeX Info: Redefining \ref on input line 106.
-LaTeX Info: Redefining \pageref on input line 106.
-LaTeX Info: Redefining \nameref on input line 106.
+LaTeX Info: Redefining \ref on input line 108.
+LaTeX Info: Redefining \pageref on input line 108.
+LaTeX Info: Redefining \nameref on input line 108.
 
 (./main.out) (./main.out)
 \@outlinefile=\write3
@@ -553,59 +585,72 @@ G,.JBIG2,.JB2,.eps]
 File: epstopdf-sys.cfg 2010/07/13 v1.3 Configuration of (r)epstopdf for TeX Liv
 e
 ))
-LaTeX Font Info:    Try loading font information for U+msa on input line 109.
+\c@lstlisting=\count128
+LaTeX Font Info:    Try loading font information for U+msa on input line 111.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2009/06/22 v3.00 AMS symbols A
 )
-LaTeX Font Info:    Try loading font information for U+msb on input line 109.
+LaTeX Font Info:    Try loading font information for U+msb on input line 111.
 
 (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2009/06/22 v3.00 AMS symbols B
 )
-LaTeX Font Info:    Try loading font information for U+rsfs on input line 109.
+LaTeX Font Info:    Try loading font information for U+rsfs on input line 111.
 
 (/usr/share/texlive/texmf-dist/tex/latex/jknapltx/ursfs.fd
 File: ursfs.fd 1998/03/24 rsfs font definition file (jk)
-)
-! Font U/rsfs/m/n/8=rsfs10 at 8.0pt not loadable: Metric (TFM) file not found.
-<to be read again> 
-                   relax 
-l.109 
-      
-? 
-! Font U/rsfs/m/n/6=rsfs5 at 6.0pt not loadable: Metric (TFM) file not found.
-<to be read again> 
-                   relax 
-l.109 
-      
-? 
-! Interruption.
-extract@font ...ont font@name external@font relax 
-                                                  font@name relax csname f@e...
-l.109 
-      
-? 
-! Font U/rsfs/m/n/5=rsfs5 at 5.0pt not loadable: Metric (TFM) file not found.
-<to be read again> 
-                   relax 
-l.109 
-      
-? 
-! Emergency stop.
-<to be read again> 
-                   relax 
-l.109 
-      
-End of file on the terminal!
+) [1
 
- 
+{/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}]
+Overfull \hbox (1.45033pt too wide) in paragraph at lines 173--180
+ []\OT1/cmr/bx/n/10 Constructive Bias. \OT1/cmr/m/n/10 Bias is nec-es-sary for 
+in-duc-tion, ma-chine learn-ing and search.
+ []
+
+[2] [3]
+Overfull \hbox (5.15775pt too wide) in paragraph at lines 261--263
+[]\OT1/cmr/m/n/10 Attributes are eval-u-ated against a dataset to pro-duce an a
+t-tribute vec-tor $(\OML/cmm/m/it/10 a[]; :::; a[]\OT1/cmr/m/n/10 )$
+ []
+
+[4]
+No file main.bbl.
+Package atveryend Info: Empty hook `BeforeClearDocument' on input line 325.
+[5]
+Package atveryend Info: Empty hook `AfterLastShipout' on input line 325.
+ (./main.aux)
+Package atveryend Info: Executing hook `AtVeryEndDocument' on input line 325.
+Package atveryend Info: Executing hook `AtEndAfterFileList' on input line 325.
+Package rerunfilecheck Info: File `main.out' has not changed.
+(rerunfilecheck)             Checksum: D41D8CD98F00B204E9800998ECF8427E;0.
+Package atveryend Info: Empty hook `AtVeryVeryEnd' on input line 325.
+ ) 
 Here is how much of TeX's memory you used:
- 6458 strings out of 495059
- 90076 string characters out of 3182030
- 170284 words of memory out of 3000000
- 9560 multiletter control sequences out of 15000+200000
- 7693 words of font info for 30 fonts, out of 3000000 for 9000
- 14 hyphenation exceptions out of 8191
- 29i,2n,23p,221b,213s stack positions out of 5000i,500n,10000p,200000b,50000s
-!  ==> Fatal error occurred, no output PDF file produced!
+ 7823 strings out of 493485
+ 109271 string characters out of 3143526
+ 204165 words of memory out of 3000000
+ 11014 multiletter control sequences out of 15000+200000
+ 10394 words of font info for 43 fonts, out of 3000000 for 9000
+ 957 hyphenation exceptions out of 8191
+ 29i,6n,32p,404b,333s stack positions out of 5000i,500n,10000p,200000b,50000s
+</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx10.pfb></us
+r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmbx8.pfb></usr/share
+/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></usr/share/texli
+ve/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/share/texlive/tex
+mf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share/texlive/texmf-dist
+/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texlive/texmf-dist/fonts/
+type1/public/amsfonts/cm/cmr7.pfb></usr/share/texlive/texmf-dist/fonts/type1/pu
+blic/amsfonts/cm/cmr8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/ams
+fonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/
+cm/cmsy6.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy
+7.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmti10.pfb>
+</usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmtt10.pfb></usr/
+share/texlive/texmf-dist/fonts/type1/public/amsfonts/symbols/msbm10.pfb>
+Output written on main.pdf (5 pages, 160223 bytes).
+PDF statistics:
+ 96 PDF objects out of 1000 (max. 8388607)
+ 74 compressed objects within 1 object stream
+ 14 named destinations out of 1000 (max. 500000)
+ 1 words of extra memory for PDF output out of 10000 (max. 10000000)
+
