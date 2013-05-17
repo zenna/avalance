@@ -96,7 +96,7 @@
 
 \newcommand{\mycomment}[1]{{\color{blue} #1}}
 
-\title{Abstract Theories}
+\title{Theory as Program}
 
 % The thanks line in the title should be filled in if there is
 % any support acknowledgement for the overall work to be included
@@ -119,32 +119,47 @@ It expressiveness
 \begin{keywords}
 \end{keywords}
 
-% s
+A strict interpretation of computationalism projects beyond the metaphorical; the mind is not merely explained by computational processes, nor just is it amenable to computer simulation, it {\em is} computational.
+Cognition, it is argued, is as much the execution of programs as is the instruction based, silicon counterpart.
+The plausibility of this claim leans heavily on the idea of a universal machine.
+Yet, a more tangible argument is seen in the abundant diversity of computers, the languages that program them, and the {\em implausiblilty} of inherent functional difference; that computer $a$ could functionally  more powerful than $b$.
+This very diversity is but one catalyst for a more complete theory, if the mind is a computer, then what kind of computer?
+This study draws upon one addresses one aspect of this question, we seek a algorithmic and representational account of theories and theory construction.
+
 Humans possess, and consistently execute a remarkable capacity for constructing theories of structural complexity.
-Physical theories such as the law of gravitation invole iteration over variable quantities of objects, psychological theories of mind and game playing may involve recursively considering the intentions of agents, and generative theories of vision and physics exploit on simulation.
-The composition of the kind of theories developed both intuitively and delibaratively, and formally and informally.
-This analogue has led to the hypothesis that sufficiently rich representation for theories is something like, or explicitly is a program.
+Physical theories such as the law of gravitation involvele iteration over variable quantities of objects, psychological theories of mind and game playing may involve recursively considering the intentions of agents, and generative theories of vision and physics exploit simulation.
+The composition of these theories, developed both intuitively and delibaratively, resemble at least superficially the constructs and languages we compose our computer programs out of.
+This has led to the conjecture that the resemblance is more than cosmetic, much as computationalism posits {\em cognition as computation}, any sufficiently rich representation for theories must be computational.
+In other words, {\em theory as program}.
 
-RECAP ON JBT STUFF
+% RECAP ON JBT STUFF
 
-Computational level theory - What's that all about
+% Computational level theory - What's that all about
 
 \section*{Theories and Programs}
-A strict interpretation of computationalism projects beyond the metaphorical; the mind is not merely explained by computational processes, nor just is it amenable to computer simulation, but {\em is} computational.
-Cognition, it is argued, is as much the execution of programs as is its instruction based, silicon embedded counterparts.
-The plausibility of this claim leans heavily on the idea of a universal machine, and evidenced by the sheer.
-Second only in surprisingness of the idea that there could even exist a universal computer, is the ease , it doesn't take much, and the diversity of models of computation stands testtony to this.
-A complete theory demands more however, if the mind is a computer, then what kind of computer?
-The question addressed by this study takes takes the last of the aforementioned examples and aims to concretise an emergising idea that theories explanations are programs.
-What is the nature of the relationship of the relation between theories and programs, what kind of program is a theory?
-
-But what is a theory?
+If investigating the nature of the relationship between theories and programs, we must first approach the nature of each component.
+What is a theory?
 Functionally, theories impose constraints on possible worlds; they declare what is possible, or probable conditioned on evidence.
-Variety expands across numerous dimensions: the extent to which latent variables are appealed to, whether or not relationships evoke a causal nature, the rigour through which they have been evaluated, and the formality with which they are stated or communicated.
-Language has partitioned these variations correspondingly, with a terms such as hypothesis, explanation , yet little consensus on the extent to which these are the same, or what precisely differentiates them.
+Variation expands across numerous dimensions: the extent to which latent variables are appealed to, whether or not relationships evoke a causal nature, the rigour through which they have been evaluated, and the formality with which they are stated or communicated.
+Language has partitioned these variations correspondingly, with a terms such as hypothesis, explanation, and definition creasing approximate conceptual boundaries.
+Still, there is little consensus on the extent to which these are the same, or what precisely differentiates them.
 
-The argument here is that there is a correspondance between kinds of theory and kinds of programs.
-Declarative theories as declarative programs.
+The argument I propose here is that {\em there is a correspondance between kinds of theory and kinds of programs}, and that this is not coincidental.
+Declarative theories as declarative programs.  I will focus on two paradigms, declarative and procedural.
+
+Kolwalski stated that a program is composed of two componets, a logic which states declaratively the goal, and a procedure, which causes effectual change to bring about that goal state.  Consider the job of sorting; we can state in logical form what it means for a collection of elements to be sorted.  In natural language: a collection is sorted is for every pair of elements $i$ and $j$, if $i$ is greater than $j$, $i$ is to the right of $j$.
+
+The procedural part of the sorting involves shuffling elements according to some algorithm, and is typically more involved. 
+Moreover there is a large variety of algorithms which will achieve the declarative goal, varying in complexity and efficiency.
+
+Programming languages typically choose one aspect of this dimension to lie upon.
+In logic and constraint programming, the declarative statement is given, and it is up to the solver to search for the solution.  In constrat, imperative programming invites us to explicitly state the procedure, and the more abstract logic is left implicit.
+
+Declarative programs, or the declarative component of a program, whether stated explicitly or not, corresponds directly to formal scientific theories.
+They both are both assertions of truth, defined in a some logic and utilise computational constructs.
+Consider for instance the theory $e=mc^2$.
+This equation constrains the physical quantities energy, masss and the speed of light.
+The constraint is expressed in terms of arithmetic functions which must be evaluated computationally.
 
 The fact that ideas should logically entail one another is nothing but a fact, no more understandable by itself than any fact of the material world.
 A logical expression is the expression of natural phenomunom , as ithe vravitation or the growth of a tree.
@@ -163,11 +178,27 @@ Probabilstic programs are emerging as a particularly expressive representation f
 A program is a theory, and a computation is a deduction from that theory.
 
 \section*{The cause of failure}
-The syntactic form of a program is indicative of its semantics only to an intelligent reasoner; the mapping is complex.
-This, and the inherent discreteness of logical structures contributes to what is refered tp discontinuity.
-It should be made explicit though, that any such notion assumes a metric on the space of programs, presumably evaluated syntatically.
-Together these have prohibit the use of simple based which perform well in other domains
-The suggested alternatives have been to transform the search space, such that a natural metric without the adverse properties can be defined, to smooth the landscape.
+It may seem churlish to associate progress in program induction with failure, as innumerous insights have been made in the learning, optimisation and inference of structures with logical form.
+Often the domain is composed of simplified representations, where expressive features such as recursion, unification or even variables are stripped away.
+Popular models are finite state automata, cellular automata and retrained logical structures such as horn clauses and first order logic.
+
+Patently absent from the literature is what precisely causes this difficulty.
+Informal arguments abound; the space of programs is too large, programs are too fragile, and there are too many discontinuities, funnels or plateaus in the search landscape.
+It is outside the scope of this study to bring a deep or formal treatment to this question, but I hope to challenge some conceptions  and guide further work.
+
+First, the idea of an inherent search landscape, and all the metaphors it evokes, is contrived.
+A landscape is a synonym to a metric space, which of course requires a metric: some notion of distance in this space.
+Some systems, typically physical systems, are constrained by a natural metric and hence the landscape metaphor has seen incredible success in the fields of computational physics.
+In others problems, such as graph partitioning problems, no physical metric exists, yet the problem maps closely or shares many of the properties of ones that do.
+It is tempting to take this analogy into domain of programs and logical structures, to suggest that any two programs are similar based on some metric which appeals to our common sense.
+A switch of a single term, replacement of a single function, or change of a single instruction are typical proposals for atomiticity in these spaces.
+
+But herein lies the program, there is no natural metric on the syntax of programs, nor is there a {\em good} one.
+When we as humans construct programs, I argue it is the semantic domain through which we explore through, and any semantic changes are secondary.
+Unfortunately, the syntactic form of a program is indicative of its semantics only to an intelligent reasoner; the mapping is complex.
+
+The difficulty then, and cause for failure, is our reliance on syntactic modification to guide search.
+It may be the case that this entire problem can be circumvented through some currently unkown means, perhaps finding a program representation which has a natural metric
 
 \section*{Constructive Bias}
 Bias is necessary for induction, machine learning and search.
@@ -206,10 +237,11 @@ There is little consensus.
 
 Theories are often formally expressed as equalities and inequalities: logical assertions on the equivalence of two expressions.
 An expression is a finite combination of symbols belonging to some formal language.
-The representational power of this language, and probable cause of its permanance and pervaseivness throughout modern science,  derives primarily from two sources: its use of syntax and symbolic form, the its of computational constructs.
+The representational power of this language, and probable cause of its permanance and pervaseivness throughout modern science,  derives primarily from two sources: its use of syntax and symbolic form, its of computational constructs.
 % a from, notions of compositionality, systematicity and productivity, in expressing theories.
 % Of particular importance to mathemticians is conciseness, indeed new notation is often used to avoid cumbersome verbose code.
 
+We synthesise the preceding ideas in application to the problem of equation discovery.
 Given a dataset of variables $\mathcal{D} = (x_1, x_2, ..., x_n)$, each composed of $N$ corresponding real-valued datapoints $x_i \in \mathbb{R}^N$, we aim to discover a system of equalities and inequalities which govern the data.
 We represent equalities as {\em s-expressions}, a notation for nested lists, popularised by dialects of the programming language Lisp.
 No hard constraints on the class of models we are willing to consider are imposed; search is not constrained only to say polynomials, linear equations or even functional relationships.
@@ -217,29 +249,37 @@ No hard constraints on the class of models we are willing to consider are impose
 For an equation to govern the data in this sense is subtle.
 We must relax the hardness of logical constraints in order to deal with real world data corrupted with noise.
 We must also introduce some inductive bias to prefer some equalities over the infinite number of alternatives.
-Lastly we must provide some means to avoid tautologies and identities; equalities which are evidently true and may even be supported on the data, but provide no constraints.
+Additionally we must provide some means to avoid tautologies and identities; equalities which are evidently true and may even be supported by the data, but are unconstraints and hence uninteresting.
 
-Our objectives can be stated formally in a probabilstic framework as an inductive inference problem , we seek to maximise the posterior probability $P(e \vert D)$ where $e \in \mathcal{E}$ is an expression in a subset of lisp given by the following grammar.
+Our objectives can be stated formally in a probabilstic framework as an inductive inference problem, we seek to maximise the posterior probability $P(e \vert D)$ where $e \in \mathcal{E}$ is an expression in a subset of lisp, reduced to arithmetic operations and first order functions.
 
 EXPRESSIONG GRAMMAR HERE
 
-The discovery of equations on the reals is often cast as as ymbolic regression problem.
-The most prominent approach is to cast the problem as a global optimisation problem, and use heuristic hearhc methods to enact syntax manipulations in the hope there will be some form of a error gradient that can be followed.
+The discovery of equations on the real numbers is often referred to as {\em symbolic regression}.
+One prominent approach is to cast the problem onto a global optimisation problem, and use heuristic search methods which enact syntax manipulations to equations, in the hope there will be some form of a error gradient that can be followed.
+Genetic algorithms are typically the heuristic of choice, where single equations are deemed individuals within some population, and genetic operations of mutation, selection and recombination are simulated to construct better theories over iterations.
+Success has been seen in cases, though for the reasons outlined in above, large equations.
+More unsatisfactory though are the large number of arbitrary parameters, huge computational cost and almost complete absense in which any structural information about the problem is exploited.
 
-There are two main ideas.  First, search should proceed by abstract constraints, these constraints should be (partially at least) extracted from the data.
-Second is that error.
+The approach here attempts to counter on these points; to increase teh quality of our guesses, and to explot information in the error and in the problem statement.
 
 \section*{Model Invariants}
-
-Hypotheses constructed is directed by data.
+Hypotheses construction is directed by data.
 We are able to infer constraints on valid proposals by first noticing regularities and structure in data.
-Given data drawn from the functional relationship $y=sinx+x^2$.
-Evaluating attributes may be automatic or deliberative, procedural or parallel, and the responsibility of which is distributed among lower level sensory areas.
-We however can consider these uniformly as programs to be evaluated on the data, and for simplicity we constrain these to be predicates on the data.
+Consider th data drawn from the functional relationship $y=x^2+sin(\frac{1/x})$, we are able to recognise the presence of a sinusoid and an exponential despite the data being grossly transformed to any canonical or prototypical model we are likely familiar with, such as $y=sinx$, or $y=x^2$.
+
+PICTURE EQUATION
+
+The features or attributes of the data are therefore more abstract than the data.
+We evaluate whether the data is smooth, passes through the origin, is monotonic or appears functional.
+We determine the number of stationary points, whether these are local maxima or minima, whether the data is periodic, and if so, the constancy.
+Evaluating attributes may be automatic or deliberative, procedural or parallel, and the responsibility of which appears distributed among  level sensory areas.
+For our intents can consider these checks as procedures programs to be evaluated on the data.
+, and for simplicity we constrain these to be predicates on the data.
 
 The framework, as stated later in the algorithm section, proceeds genrally by extending models.
 A model is an equation composed of variables, parameters and functions.
-Each parameter has an associated generative model, which is a stochastic function composed of determinsitic and stochastic primitives.
+Each parameter has an associated generative model, which is a stochastic function of no arguments, composed of determinsitic and stochastic primitives.
 For illustration a power model $y=ax^n$ with normally distributed parameters is expressed as:
 
 \begin{verbatim}
@@ -254,7 +294,7 @@ For illustration a power model $y=ax^n$ with normally distributed parameters is 
 
 An primitive set of models is supplies $M'$
 
-Our first step is to cosntruct a first good guess.
+Our first step is to construct a first good guess.
 This is achived by evaluating a set of attributes which are predicates deigned to capture abstract features of the data.
 Much in line with the theme of this work, an attribute is a progre data is composedam, composed explicitly of a declarative and procedural component.
 
@@ -265,59 +305,59 @@ Our approach to this problem is generative
 The simple example above demonstrates a hurdle,
 The approach suggested here is to exploit the fact that our expressions can be evaluable by generating extensions to our model
 
-\subsubsection{Pattern grammar}
+\subsubsection*{Pattern grammar}
 
-Formally a grammar is a  $(P, f_P  N, \Sigma, R, \theta, ) $
+A pattern grammar combines combinines two concepts in computer science and linguistics, {\em formal grammars} and {\em pattern matching}.
+Pattern matching is the process of checking a perceived sequence of tokens for the presence of the constituents of some pattern.
+The pattern '( I need a ?X) when matched with the string '( I need a vacation), would yeild a match, and return the assignment ?X = vacation.
+Formal grammars are sets of production rules for strings, and define formal languages.
+Patterns also define formal languages in the recognition sense; they are functions that determines whether a given string belongs to the language or otherwise.(
+They are distinguishes from grammars in their admission of variables variables, parts of the matched expression to be extracted (or replaced) in the occurance of a match.
+
+Intuitively we can think of patterns provide a language in which to express modifications to a string, and when combined this with a formal grammar we have a means of defining, and subsequently generating, well formed modifications to any particular string.
+
+Formally a pattern grammar is a  $(P, p_P  N, \Sigma, R)$, where:
+
 \begin{itemize}
-\item A finite set $P$ of patterns.
-\item A pattern matcher
-\item A probability mass function $f_P$ on pattern matches.
+\item A finite set $P$ of patterns, each consisting of a fixed non-zero number of matching variables.  A pattern can be thought of as a function
 \item A finite set $N$ of nonterminal symbols.
 \item A finite set $\Sigma$ of terminal symbols that is disjoint from N
 \item A finite set $R$ of parsing rules.
-\item A correspondng set of probabilities on rules such that
 \end{itemize}
 
-Unlike a context free grammar or stochastic context free grammar, a pattern grammar neither recognises strings nor generates new strings; it extends existing strings.
-To apply a modification grammar to a sentence means to apply perform all pattern matches on the string, sample one from some distribution.
+Given a pattern grammar and a {\em base} sentence, one can evaluate whether any other string is an extension of the base with respect to the grammar.
+The complexity of such a decision problem will of course depend of the matching complexity of the pattern, but will be exponentially.
+Our objectives in such a grammar are generative however, and we refocus our concerns to constructing modificatiosn to a given string.
 
-Patterns Grammars
+To this end we can define a probabilstic pattern grammar, formally as $(P, p_P  N, \Sigma, R)$, where all existing terms are defined as before and addition terms are
+\begin{itemize}
+\item A finite set $R$ of parsing rules.
+\end{itemize}
+
+A probabilstic pattern grammar unlike a context free grammar or stochastic context free grammar, neither recognises strings nor generates new strings.
+Its business is only in the extension of existing strings, and hence is a function $f:\mathcal{E} \rightarrow \mathcal{E}$.
+
+An asignment of weights determines a probability distribution on string modifications, which is precisely is required to bias the model transformations when evalauting the likelihood function.
 
 \section*{Difference reduction}
+
+The previous step will provide us with samples of models and propsed areas of extension, but how to proceed from there?
+A naive approach would be to generate 
 
 A common technique employed in the sciences and regression analysis is to inspect the residuals, or fitting error.
 
 Considering a variable $x$, we call the additive error with respect to model $m \in \mathcal{M}$, the dataset $R_+ = (r_i \vert r_i = y_i - m(x_i))$.  Note that least squares regression seeks to minimise $S = \sum_{i=1}^n r_i^2$ . We would like to generalise this in two ways, firstly to account for n-ary conditions, and secondly to generalise error from additive to a general function.
 
-One central procedure is to establish a template form, and explore ways in which this form
-would be modified in order to account for its deficiencies.
-Consider a set of characteristic features $C$, each a predicate on the data, $f \in C:\mathbb{R}^n \rightarrow {true, false}$.
-Examples might be: periodic? smoothly varying? constant-period?.
-We then define a conditional probability table for each model, $P(model \vert C)$.
 The first objective then is to learn this probability table.
 We then ask hypotheticals, perturbations to our conditioned attributes to create modified $C'$, and observe the affect on p(model|C).
 For perturbations which increase the $p(model \vert C)$, e.g. if the data were smoothly varying then a sinusoid becomes a more likely place to start, so then, what do we have to do to change out data to make it smoothly varying, or what do we have to do to our model to make it not smoothly varying.
 What change do we need to make to our model, such that this characteristic is no longer. 
 
-Formally the task is to
-
-Define or learn a set of predicates $C$.
-For each model $m$, learn a conditional probability table $p(m|C)$
-Considering $C$ and perturbed function $C'$, let $C \rightarrow C'$ as the set   Learn the perturbation function
-
 \section*{Algorithm}
 
-At thie highest level, the algorithm constructs equations by executing transformations on sets of equations; it can be viewed as traversing the powerset of equations.
-Transformations are data driven and are based on t
+\section*{Conclusion}
 
-Recognition (or proxy thereof):, the idea that abstract.
-Extension:
-First, the idea that abstract.
-
-In words, we attempt to recognise some general structure in the data.  Currently this is implemented by iterating over the set of models.
-Then we attempt to extend a candidate model, by first proposing an extension
-
-
+\section*{Future Work}
 
 \bibliographystyle{siam}
 \bibliography{library}
