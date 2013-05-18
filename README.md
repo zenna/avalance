@@ -1,13 +1,11 @@
 # avalance
+Equation discovery
 
-A Clojure library designed to ... well, that part is up to you.
+# prerequsites
+Clojure
+Leiningen
 
 ## Usage
 
-FIXME
-
-## License
-
-Copyright © 2013 FIXME
-
-Distributed under the Eclipse Public License, the same as Clojure.
+git clone git@github.com:zenna/avalance.git
+lein run -m avalance.relations
