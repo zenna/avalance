@@ -209,12 +209,3 @@
       nil
       coll))
 
-(defn pass
-  "Use output of function eval as one input to a function
-   (f init-ip (first coll) to yeild output
-    then does (f output (second coll), and so on for all coll"
-  [f init-ip coll]
-  (loop [op init-ip coll coll]
-  (if 
-    (empty? coll) op
-    (recur (f (first coll) op) (rest coll)))))

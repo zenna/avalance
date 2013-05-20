@@ -1,75 +1,85 @@
-(ns avalance.core)
+(ns ^{:doc "Symbolic Regression main."
+      :author "Zenna Tavares"}
+  avalance.core
+  (:use avalance.relations)
+  (:use avalance.suggest))
 
-(require 'avalance.helpers)
+; Models are expressions, which have parameters and variables
+; Parameters are values to be optmised
+; Whereas variables come from compounds of data
+(def exponent-model
+  {:as-expr '(= y (Math/pow pb x))
+  :params ['pb]
+  :vars ['y 'x]
+  :name 'exponent})
+
+(def power-model
+  {:as-expr '(= y (Math/pow x n)) 
+  :params ['n]
+  :vars ['y 'x]
+  :name 'power})
+
+(def linear-model
+  {:as-expr '(= y (+ c (* m x)))
+   :params ['c 'm]
+   :vars ['y 'x]
+   :name 'linear})
+
+(def sin-model
+  {:as-expr '(= y (Math/sin (* x p)))
+   :param-sampler {'p rand}
+   :params ['p]
+   :vars ['y 'x]
+   :name 'sin})
+
+(def constant-model
+  {:as-expr '(= y k)
+   :param-sampler {'k #(* 100 rand)}
+   :params ['k]
+   :vars ['y]
+   :name 'constant})
+
+(def models
+  "Initial model set"
+  [constant-model
+   exponent-model
+   linear-model
+   sin-model
+   power-model])
+
+; Error functions - all binary
+(def error-fs
+  ['+ '*])
+
+; Example function from Herb Simon
+(defn kepler
+  [D]
+  (* 1.5 (Math/pow D (/ 3 2))))
+
+(defn line
+  [x]
+  (+ 1.5 (* 10 x)))
+
+(defn x-squared
+  [x]
+  (+ (* x x) (Math/sin x)))
+
+(defn two-sin-x
+  [x]
+  (+ (* 2 (Math/sin x))))
+
+(defn a-little-complex
+  [x]
+  (+ x  (* (Math/sin (* 2 x)) 3)))
+
+(def data (gen-data-uniform line 10 100.0 5))
+(println "Data Is" data)
 
 
-
-; BIG TODO - be able to generate functions and evaluate them
-; Transformations need to be type consistent
-; Syntactically correct
-; Ensure that every tranformation provides the correct number of arguments
-; That they are type consisten
-
-;TSP stuff
-(def init-tour [[2 0.1] [0.8 0.3] [0.2 0.16] [0.267 0.61]])
-
-(defn tour-length
-  "total length"
-  [tour & extra-args]
-  (reduce + (between (fn [x y] (+ (square (- (nth x 0) (nth y 0)))
-                       (square (- (nth x 1) (nth y 1))))) tour)))
-
-; Initial stochastic gradient ascent search algorithm 
-; Apply a set of transforms to an intitial soltuion
-; Evaluate the quality of each one
-; stochastically choose the best one
-; repeat
-(def program {:as-list '(fn
-  [cost-func, init-sol, transforms, lib, depth]
-  (let [make-step (fn [sol-current steps]
-    ; Apply 5 random transformations to solution, and find lowest cost
-    (let [selected-transforms (take 5 (repeatedly #((:rand-choice lib) transforms)))
-          proposals ((apply juxt selected-transforms) sol-current)
-          sol-best ((:rand-choice lib) ((:max-elements lib) #(cost-func %1 lib depth) proposals))]	
-      
-      ; Then repeat with best sol in this round as initial sol in next
-      (if (zero? steps)
-        sol-best
-        (recur sol-best (dec steps)))))]
-
-    (make-step init-sol 5)))
-	:type-sig []
-	:program-transforms [identity]})
-
-(def lib {:rand-choice rand-choice :max-elements max-elements})
-
-; Structure for problems
-(defstruct problem :transforms :init-sol :cost-func)
-(def tsp (struct problem [shuffle, reverse] init-tour tour-length))
-(def problems [tsp])
-
-(defn eval-search
-  "Evaluate search algoritm cost"
-  [search-algo, lib, depth]
-  (let 
-    ; Find problem solutions for each problem
-    [eval-search-algo (eval (:as-list program))
-    prob-sols (map (fn [prob] (eval-search-algo 
-      (:cost-func prob)
-      (:init-sol prob) 
-      (:transforms prob)
-      lib
-      0)) problems)
-    ; TODO- get scores for each SA
-    prob-scores (lines (map #(:cost-func %1) problems) prob-sols)
-    sum-prob-scores (sum prob-scores)]
-    
-    (if (zero? depth)     
-      sum-prob-scores
-      (+ sum-prob-scores (eval-search
-      	(eval-search-algo eval-search search-algo (:program-transforms program) lib (dec depth))
-      	lib (dec depth))))))
+;sols (find-expr data models error-fs 0 [])]
 
 (defn -main
-	[]
-	((eval (:as-list program)) eval-search program (:program-transforms program) lib 1))
+  []
+  (let [sols (new-find-expr data models [] all-attrs)]
+    (println "\n\nThe unformatted solutions are:" sols)
+    (println "\n\nThe formatted solutions are:" (map compile-expr sols))))

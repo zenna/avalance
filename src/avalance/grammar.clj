@@ -1,7 +1,7 @@
 (ns ^{:doc "A grammar based on pattern matching."
       :author "Zenna Tavares"}
   avalance.grammar
-  (:use avalance.helpers)
+  (:use clozen.helpers)
   (:use avalance.equations))
 
 (defn pattern-evaluator
@@ -14,6 +14,7 @@
 
 ; FIXME, I NEED ANOTHER LEVEL OF CONTROL FOR MULTIPL BRANCHES
 (defn extend-expr
+  "Extend the expression with a pattern grammar"
   [expr pmg]
   (let [matches (map #(pattern-evaluator expr %)
                       (keys (:pattern-rules pmg)))

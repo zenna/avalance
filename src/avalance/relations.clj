@@ -1,13 +1,13 @@
-; Symbolic Regression with good proposals
-(ns avalance.relations
-  (:require [clojure.math.combinatorics :as combo])
+(ns ^{:doc "Symbolic Regression with good proposals"
+      :author "Zenna Tavares"}
+  avalance.relations
   (:use clojure.test)
-  (:use clojure.walk))
-
-(use 'clojure.math.numeric-tower)
-(use 'avalance.equations)
-(use 'avalance.neldermead)
-(use 'avalance.helpers)
+  (:use clojure.walk)
+  (:use avalance.suggest)
+  (:use clojure.math.numeric-tower)
+  (:use avalance.equations)
+  (:use clozen.neldermead)
+  (:use clozen.helpers))
 
 ; Terms: subexpr - a function of the data, which when evaluated will return a real number
         ; model   - a predicate expression containing parameters as well as variables, cannot be evaluated unless params are instantiated
@@ -588,13 +588,12 @@
 
     ; loop over (samples of) subexpression sets
     (loop [equations [] num-plots-left max-num-plots seen-subexprs []]
-      ;1. Force myself to make better plo 
-      (let [num-subexprs-attempt (inc (rand-int 2)); TODO this should be dependent on the number of variables in the data
-            ; Filter out models of wrong number of parameters
+      (let [num-subexprs-attempt (inc (rand-int 2))
             expr-constraints? (make-expr-constraints mandatory-exprs)
             subexprs-subexprs-data (gen-subexprs data num-subexprs-attempt expr-constraints? mandatory-exprs seen-subexprs)
             {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
             num-subexprs (count (keys subexprs-data))
+            ; Filter out models of wrong number of parameters
             models (filter #(= num-subexprs (count (:vars %))) all-models)
             ok (println "\n" prefixprint "Sub-expressions:" num-subexprs (keys subexprs-data))
             equations
@@ -609,17 +608,15 @@
             c-equations
 
             :else
-            (let [;okok (println "C-EQUATIONS" c-equations)
+            (let [; pvar (println "C-EQUATIONS" c-equations)
                   model (sample-model sampled-models models subexprs-data)
                   sampled-models (conj sampled-models model)
                   var-binding (bind-data-to-model subexprs-data model mandatory-exprs)
-                  ; whaa (println "VARBINDING" var-binding)
+                  ; pvar (println "VARBINDING" var-binding)
                   equation (fit-model subexprs-data model var-binding)
-                  ; ok (println prefixprint "TRIED MODEL" (vals (:model equation)) (:cost equation))
+                  ; pvar (println prefixprint "TRIED MODEL" (vals (:model equation)) (:cost equation))
                   okS (println prefixprint "Tried Model, Depth: " depth " Got equation" (vals equation))]
-                  ; 1. compile-expression ]
-                  ; (println equation)
-              
+                                
               ; Should I extend the model or not?
               (cond
                 (accept-equation? equation subexprs-data)
@@ -665,84 +662,18 @@
           :else
             equations)))))
 
-; Models are expressions, which have parameters and variables
-; Parameters are values to be optmised
-; Whereas variables come from compounds of data
-(def exponent-model
-  {:as-expr '(= y (Math/pow pb x))
-  :params ['pb]
-  :vars ['y 'x]
-  :name 'exponent})
+(defn new-find-expr
+  "Searches for an expression"
+  [data all-models mandatory-exprs attrs]
+  (let [max-num-plots 5]
 
-(def power-model
-  {:as-expr '(= y (Math/pow x n)) 
-  :params ['n]
-  :vars ['y 'x]
-  :name 'power})
-
-(def linear-model
-  {:as-expr '(= y (+ c (* m x)))
-   :params ['c 'm]
-   :vars ['y 'x]
-   :name 'linear})
-
-(def sin-model
-  {:as-expr '(= y (Math/sin (* x p)))
-   :param-sampler {'p rand}
-   :params ['p]
-   :vars ['y 'x]
-   :name 'sin})
-
-(def constant-model
-  {:as-expr '(= y k)
-   :param-sampler {'k #(* 100 rand)}
-   :params ['k]
-   :vars ['y]
-   :name 'constant})
-
-(def models
-  [constant-model
-   exponent-model
-   linear-model
-   sin-model
-   power-model])
-
-; Error functions - all binary
-(def error-fs
-  ['+ '*])
-
-; Example function from Herb Simon
-(defn kepler
-  [D]
-  (* 1.5 (expt D (/ 3 2))))
-
-(defn line
-  [x]
-  (+ 1.5 (* 10 x)))
-
-(defn x-squared
-  [x]
-  (+ (* x x) (Math/sin x)))
-
-(defn two-sin-x
-  [x]
-  (+ (* 2 (Math/sin x))))
-
-(defn a-little-complex
-  [x]
-  (+ x  (* (Math/sin (* 2 x)) 3)))
-(def data (gen-data-uniform line 10 100.0 50))
-(println "Data Is" data)
-(def sols (find-expr data models error-fs 0 []))
-
-(println "\n\nThe unformatted solutions are:" sols)
-
-(println "\n\nThe formatted solutions are:" (map compile-expr sols))
-
-(defn -main[])
-
-; (require 'avalance.relations)
-; (use 'clojure.tools.trace)
-; (trace-ns 'avalance.relations)
-; (gen-data-uniform inc 3 5 10)
-; (-main)
+    ; loop over (samples of) subexpression sets
+    (loop [equations [] num-plots-left max-num-plots seen-subexprs []]
+      (let [num-subexprs-attempt (inc (rand-int 2))
+            expr-constraints? (make-expr-constraints mandatory-exprs)
+            subexprs-subexprs-data (gen-subexprs data num-subexprs-attempt expr-constraints? mandatory-exprs seen-subexprs)
+            {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
+            num-subexprs (count (keys subexprs-data))
+            models (filter #(= num-subexprs (count (:vars %))) all-models)
+            equations (suggest-ext subexprs-data models attrs)]
+        equations))))

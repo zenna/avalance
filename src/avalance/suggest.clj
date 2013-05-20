@@ -1,7 +1,8 @@
 (ns ^{:doc "Suggest extensison to some expr."
       :author "Zenna Tavares"}
 avalance.suggest
-  (:use avalance.grammar))
+  (:use avalance.grammar)
+  (:require [clojure.math.combinatorics :as combo]))
 
 (defn match-selector
   "Selects a match.
@@ -34,19 +35,33 @@ avalance.suggest
 
 ; Attributes
 ; TODO Definde declarative language here
+; so features can take varying numbers of arguments, I either need to give a hard constraint
+; that is, only use the correct number of features or do something more intelligent.
+; How to do this? 
+; Planning? 
+
+; TODO - how to account for attributes with varying number of parameters?
+; TODO - how will declarative-procedural component work?
+(def monotonic-attr
+  {:decl '(= y k) ;TODO, write in declarative form
+   :proc (fn [a b] (true))
+   :vars '[a b]
+   :name 'monotonic-attr})
+
 (def smooth? 'is-smooth?)
 (def periodic? 'is-periodic)
 (def monotonic? 'monotonic?)
-(def attrs-procedures
-  {monotonic? (fn [data]
+(def attrs-funcs
+  {monotonic? (fn [a b]
     true)})
 (def all-attrs
-  [smooth? periodic?])
+  [monotonic-attr])
 
 (defn eval-attr
   "Evaluate an attribute"
-  [attr data]
-  ((attrs-procedures attr) data))
+  [attr subexprs data]
+  (println "DATA" data "\nsubexprs" subexprs )
+  (apply (:proc attr) (map #(data %) subexprs)))
 
 (defn attr-val-compare
   "Compute the similarity between two attribute vectors"
@@ -62,29 +77,35 @@ avalance.suggest
   Currently works only with functional models, asuming lhs is dependent
   variable and rhs independent."
   [model]
-    
+  (println "ok let's try" model))
 
 (defn eval-posterior
   "Evaluate the posterior of 'model in expression'"
   [attr-vals model subexprs-data var-bindings]
   (let [num-gen 100
         ; Generate
-        sim-vals (for [i (range num-gen)]
-                      :let [ext-model (extend-expr (:as-expr model))]
-                      (attr-val-compare attr-vals (eval-attr (gen-data ext-model) data)))]
-    (mean sim-vals)))
-  ; Generate N models where that is true wowho ho hoo
-  ; have some similarity metric on the attr-vals
+        sim-vals (for [i (range num-gen)
+                      :let [ext-model (extend-expr (:as-expr model))]]
+                      ext-model)]
+
+                      ; (attr-val-compare attr-vals (eval-attr (gen-data ext-model) data)))]
+    sim-vals))
 
 ; Entry Point
-(defn suggest-model-and-extension
-  [data models attrs subexprs-data var-bindings]
+(defn suggest-ext
+  [data models attrs]
   "Given some data it will suggest a (number of?) models and extensions.
   Suggest model and extension"
-  ;1 Choose a model to extend
-  (let [attr-vals (map #(eval-attr % data) attrs)
-        posteriors (map #(eval-posterior attr-vals % attrs subexprs-data var-bindings) models)]
-    (rand-nth-categorical models posteriors)))
+  ; Either pass in all the data with subset of subexprs of interest, or just
+  ; filter the data to only include that what one needs?
+  (let [attr-vals (for [subexprs (combo/permutations (keys data))]
+                       (map #(eval-attr % subexprs data)
+                             (filter #(= (count subexprs) (count %)) attrs)))]
+        ; posteriors (map #(eval-posterior attr-vals % attrs subexprs-data
+        ;                                  var-bindings) 
+        ;                 models)]
+    attr-vals))
+    ; (rand-nth-reciprocal-categorical models posteriors)))
 
 (defn find-counter-factuals
   [attr-vals]
