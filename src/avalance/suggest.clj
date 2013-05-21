@@ -78,7 +78,6 @@ avalance.suggest
   variable and rhs independent."
   [model]
   (let [n-model-samples 2]
-
   (println "ok let's try" model)))
 
 (defn eval-posterior
@@ -102,8 +101,7 @@ avalance.suggest
   "Compute attribute values for a model."
   [model attrs]
   (let [n-ext-gen 0
-        cluster (concat [model] (repeatedly (extend-model model)
-                                        n-ext-gen))
+        cluster (concat [model] (repeatedly n-ext-gen (extend-model model)))
         cluster-data (map #(gen-data %) cluster)]
     {:focal-model model
      :cluster-attr-vals (map eval-attr-perms cluster-data attrs)}))

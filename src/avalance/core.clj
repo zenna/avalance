@@ -36,7 +36,6 @@
 (defn sample-vals
   "Return sampled vals sampled from distributions"
   [symbs dists]
-  ; (println symbs "--" dists)
   (zipmap symbs
           (map #((dists %)) symbs)))
 
@@ -45,24 +44,23 @@
   Assumes model is of form y = f(x), not necessarily with those symbols,
   but that there is single term on lhs which does not appear on rhs."
   [model]
-  (let [rhs (nth (:as-expr model) 2)
-        pvar (println "rhs" rhs)
-        rhs-vars (filter #(in? (flatten rhs) %) (:vars model))
-        
+  (let [lhs (nth (:as-expr model) 1)
+        rhs (nth (:as-expr model) 2)
+        rhs-vars (filter #(in? (flatten rhs) %) (:vars model))        
         {as-lambda :as-lambda arg-map :arg-map}
           (make-model-lambda-rpl rhs (concat (:vars model) (:params model)))]
+
       (fn [n-points]
         (let [param-vals (sample-vals (:params model) (:dists model))]
-              ; pvar (println "param-vals" param-vals)
-              ; pvar (println "arg-map" arg-map)
-              ; pvar (println "testtest" (merge param-vals
-              ;                     (sample-vals rhs-vars (:dists model))))]
-          (repeatedly
-            n-points
-            #(apply as-lambda 
-              (place-args (merge param-vals
-                                  (sample-vals rhs-vars (:dists model)))
-                          arg-map)))))))
+          (apply merge-with cons-conj
+            (repeatedly
+              n-points
+              #(let [var-vals (sample-vals rhs-vars (:dists model))]
+                (merge  var-vals
+                        {lhs
+                          (apply as-lambda 
+                          (place-args (merge param-vals var-vals)
+                                      arg-map))}))))))))
 
 (defn add-gen-model
   [model]
@@ -112,7 +110,6 @@
 
 (def data (gen-data-uniform line 10 100.0 5))
 (println "Data Is" data)
-
 
 ;sols (find-expr data models error-fs 0 [])]
 
