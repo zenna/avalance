@@ -701,16 +701,16 @@
   "Searches for an expression"
   [data all-models mandatory-exprs attrs]
   (let [max-num-plots 5
-        model-attr-vals (map #(find-attr-vals % attrs) all-models)
-        pvar (println "MODMODMO" model-attr-vals)]
+        model-attr-vals (map #(find-attr-vals % attrs) all-models)]
+        model-attr-vals))
 
-    ; loop over (samples of) subexpression sets
-    (loop [equations [] num-plots-left max-num-plots seen-subexprs []]
-      (let [num-subexprs-attempt (inc (rand-int 2))
-            expr-constraints? (make-expr-constraints mandatory-exprs)
-            subexprs-subexprs-data (gen-subexprs data num-subexprs-attempt expr-constraints? mandatory-exprs seen-subexprs)
-            {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
-            num-subexprs (count (keys subexprs-data))
-            models (filter #(= num-subexprs (count (:vars %))) all-models)
-            equations (suggest-ext subexprs-data models attrs)]
-        model-attr-vals))))
+    ; ; loop over (samples of) subexpression sets
+    ; (loop [equations [] num-plots-left max-num-plots seen-subexprs []]
+    ;   (let [num-subexprs-attempt (inc (rand-int 2))
+    ;         expr-constraints? (make-expr-constraints mandatory-exprs)
+    ;         subexprs-subexprs-data (gen-subexprs data num-subexprs-attempt expr-constraints? mandatory-exprs seen-subexprs)
+    ;         {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
+    ;         num-subexprs (count (keys subexprs-data))
+    ;         models (filter #(= num-subexprs (count (:vars %))) all-models)
+    ;         equations (suggest-ext subexprs-data models attrs)]
+    ;     model-attr-vals))))

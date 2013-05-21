@@ -60,7 +60,7 @@ avalance.suggest
 (defn eval-attr
   "Evaluate an attribute"
   [attr subexprs data]
-  (println "ATTR" attr "\nDATA" data "\nsubexprs" subexprs )
+  ; (println "ATTR" attr "\nDATA" data "\nsubexprs" subexprs )
   (apply (:proc attr) (map #(data %) subexprs)))
 
 (defn attr-val-compare
@@ -77,8 +77,9 @@ avalance.suggest
   Currently works only with functional models, asuming lhs is dependent
   variable and rhs independent."
   [model]
-  (let [n-model-samples 2]
-  (println "ok let's try" model)))
+  (let [n-model-samples 2
+        n-points 10]
+    (repeatedly n-model-samples #((:gen model) n-points))))
 
 (defn eval-posterior
   "Evaluate the posterior of 'model in expression'"
@@ -87,6 +88,7 @@ avalance.suggest
 (defn eval-attr-perms
   "Evaluate the attributes for all permutations of the data"
   [data attrs]
+  ; (println "DATA" data)
   (for [subexprs (combo/permutations (keys data))]
                          (map #(eval-attr % subexprs data)
                                (filter #(= (count subexprs) (count (:vars %))) 
@@ -100,11 +102,11 @@ avalance.suggest
 (defn find-attr-vals
   "Compute attribute values for a model."
   [model attrs]
-  (let [n-ext-gen 0
-        cluster (concat [model] (repeatedly n-ext-gen (extend-model model)))
-        cluster-data (map #(gen-data %) cluster)]
+  (let [n-ext-gen 1
+        cluster (concat [model] (repeatedly n-ext-gen #(extend-model model)))
+        cluster-data (apply concat (map #(gen-data %) cluster))]
     {:focal-model model
-     :cluster-attr-vals (map eval-attr-perms cluster-data attrs)}))
+     :cluster-attr-vals (map #(eval-attr-perms % attrs) cluster-data)}))
 
 ; Entry Point
 (defn suggest-ext
