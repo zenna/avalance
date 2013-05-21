@@ -2,7 +2,8 @@
       :author "Zenna Tavares"}
   avalance.core
   (:use avalance.relations)
-  (:use avalance.suggest))
+  (:use avalance.suggest)
+  (:use clozen.helpers))
 
 ; Models are expressions, which have parameters and variables
 ; Parameters are values to be optmised
@@ -14,7 +15,7 @@
   :name 'exponent})
 
 (def power-model
-  {:as-expr '(= y (Math/pow x n)) 
+  {:as-expr '(= y (Math/pow x n))
   :params ['n]
   :vars ['y 'x]
   :name 'power})
@@ -27,25 +28,62 @@
 
 (def sin-model
   {:as-expr '(= y (Math/sin (* x p)))
-   :param-sampler {'p rand}
+   :dists {'p #(rand) 'x #(* 10 (rand))}
    :params ['p]
    :vars ['y 'x]
    :name 'sin})
 
+(defn sample-vals
+  "Return sampled vals sampled from distributions"
+  [symbs dists]
+  ; (println symbs "--" dists)
+  (zipmap symbs
+          (map #((dists %)) symbs)))
+
+(defn decl-to-gen
+  "Convert a (functional) declarative model into a generative model
+  Assumes model is of form y = f(x), not necessarily with those symbols,
+  but that there is single term on lhs which does not appear on rhs."
+  [model]
+  (let [rhs (nth (:as-expr model) 2)
+        pvar (println "rhs" rhs)
+        rhs-vars (filter #(in? (flatten rhs) %) (:vars model))
+        
+        {as-lambda :as-lambda arg-map :arg-map}
+          (make-model-lambda-rpl rhs (concat (:vars model) (:params model)))]
+      (fn [n-points]
+        (let [param-vals (sample-vals (:params model) (:dists model))]
+              ; pvar (println "param-vals" param-vals)
+              ; pvar (println "arg-map" arg-map)
+              ; pvar (println "testtest" (merge param-vals
+              ;                     (sample-vals rhs-vars (:dists model))))]
+          (repeatedly
+            n-points
+            #(apply as-lambda 
+              (place-args (merge param-vals
+                                  (sample-vals rhs-vars (:dists model)))
+                          arg-map)))))))
+
+(defn add-gen-model
+  [model]
+  (assoc model :gen (decl-to-gen model)))
+
 (def constant-model
   {:as-expr '(= y k)
    :param-sampler {'k #(* 100 rand)}
+   :gen (fn [n-points] ())
    :params ['k]
    :vars ['y]
    :name 'constant})
 
 (def models
   "Initial model set"
-  [constant-model
-   exponent-model
-   linear-model
-   sin-model
-   power-model])
+  (map add-gen-model
+        [;constant-model
+         ;exponent-model
+         ;linear-model
+         ;power-model
+         sin-model]))
 
 ; Error functions - all binary
 (def error-fs

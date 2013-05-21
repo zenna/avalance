@@ -75,9 +75,21 @@
         false))))
 
 (defn rearrange-args
-  ""
+  "Take a datapoint, var:val e.g. a:1.1 b:2.2,
+  and an arg-map var:pos e.g. b:0 a:1
+  and return an argument list, e.g. [2.2 1.1]"
   [datapoint arg-map]
   (map #(datapoint (first %1)) arg-map))
+
+(defn place-args
+  "Take a datapoint, var:val e.g. a:1.1 b:2.2,
+  and an arg-map var:pos e.g. 0:b 1:a
+  and return an argument list, e.g. [2.2 1.1]
+  Different from rearrange args in that argmap is
+  pos:var"
+  [datapoint arg-map]
+  (for [i (range (count arg-map))]
+    (datapoint (arg-map i))))
 
 (defn transform-data
   "Applies subexpr to data to generate new dataset"
@@ -110,7 +122,9 @@
      :vars vars-in-expr}))
 
 (defn make-model-lambda-unmem
-  "Make evaluable model rhs/lhs"
+  "Make an expression evaluable
+  Takes a list of arguments and return a functions and mapping from
+  those arguments to position in argument list for each arg"
   [expr & args]
   ; 1. find out which of the vars or params are in the subexpr
   (let [flat-expr (if (symbol? expr) (list expr) (flatten expr))
@@ -123,6 +137,27 @@
   {:as-lambda  (make-lambda-args expr vars-in-expr) :arg-map (sort-by val < arg-map)}))
 
 (def make-model-lambda (memoize make-model-lambda-unmem))
+
+; TODO: this is a replacement for function above
+;  change is that argmap is now map from position to variable
+; instead of the other way around.  This is the more sensible thing
+; but want to avoid breaking old code for now so just duplicate
+(defn make-model-lambda-rpl-unmem
+  "Make an expression evaluable
+  Takes a list of arguments and return a functions and mapping from
+  those arguments to position in argument list for each arg"
+  [expr & args]
+  ; 1. find out which of the vars or params are in the subexpr
+  (let [flat-expr (if (symbol? expr) (list expr) (flatten expr))
+        vars-in-expr
+          (vec (for [symb (reduce concat args)
+                :when (in? flat-expr symb)]
+            symb))
+        arg-map (zipmap (range (count vars-in-expr)) vars-in-expr)]
+  ; (println "EXPR" expr "\nvars!" vars "\nparams" params "\nargmap" (sort-by val < arg-map)) 
+  {:as-lambda  (make-lambda-args expr vars-in-expr) :arg-map arg-map}))
+
+(def make-model-lambda-rpl (memoize make-model-lambda-rpl-unmem))
 
 (defn extension-var?
   "Is this symbol an extension var?
@@ -588,7 +623,7 @@
 
     ; loop over (samples of) subexpression sets
     (loop [equations [] num-plots-left max-num-plots seen-subexprs []]
-      (let [num-subexprs-attempt (inc (rand-int 2))
+      (let [num-subexprs-attempt 2;(inc (rand-int 2))
             expr-constraints? (make-expr-constraints mandatory-exprs)
             subexprs-subexprs-data (gen-subexprs data num-subexprs-attempt expr-constraints? mandatory-exprs seen-subexprs)
             {subexprs :subexprs subexprs-data :subexprs-data} subexprs-subexprs-data
@@ -665,7 +700,9 @@
 (defn new-find-expr
   "Searches for an expression"
   [data all-models mandatory-exprs attrs]
-  (let [max-num-plots 5]
+  (let [max-num-plots 5
+        model-attr-vals (map #(find-attr-vals % attrs) all-models)
+        pvar (println "MODMODMO" model-attr-vals)]
 
     ; loop over (samples of) subexpression sets
     (loop [equations [] num-plots-left max-num-plots seen-subexprs []]
@@ -676,4 +713,4 @@
             num-subexprs (count (keys subexprs-data))
             models (filter #(= num-subexprs (count (:vars %))) all-models)
             equations (suggest-ext subexprs-data models attrs)]
-        equations))))
+        model-attr-vals))))

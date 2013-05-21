@@ -44,7 +44,7 @@ avalance.suggest
 ; TODO - how will declarative-procedural component work?
 (def monotonic-attr
   {:decl '(= y k) ;TODO, write in declarative form
-   :proc (fn [a b] (true))
+   :proc (fn [a b] true)
    :vars '[a b]
    :name 'monotonic-attr})
 
@@ -60,7 +60,7 @@ avalance.suggest
 (defn eval-attr
   "Evaluate an attribute"
   [attr subexprs data]
-  (println "DATA" data "\nsubexprs" subexprs )
+  (println "ATTR" attr "\nDATA" data "\nsubexprs" subexprs )
   (apply (:proc attr) (map #(data %) subexprs)))
 
 (defn attr-val-compare
@@ -77,30 +77,44 @@ avalance.suggest
   Currently works only with functional models, asuming lhs is dependent
   variable and rhs independent."
   [model]
-  (println "ok let's try" model))
+  (let [n-model-samples 2]
+
+  (println "ok let's try" model)))
 
 (defn eval-posterior
   "Evaluate the posterior of 'model in expression'"
-  [attr-vals model subexprs-data var-bindings]
-  (let [num-gen 100
-        ; Generate
-        sim-vals (for [i (range num-gen)
-                      :let [ext-model (extend-expr (:as-expr model))]]
-                      ext-model)]
+  [attr-vals model subexprs-data var-bindings])
 
-                      ; (attr-val-compare attr-vals (eval-attr (gen-data ext-model) data)))]
-    sim-vals))
+(defn eval-attr-perms
+  "Evaluate the attributes for all permutations of the data"
+  [data attrs]
+  (for [subexprs (combo/permutations (keys data))]
+                         (map #(eval-attr % subexprs data)
+                               (filter #(= (count subexprs) (count (:vars %))) 
+                                        attrs))))
+;TODO - incomplete
+(defn extend-model
+  "extends a model using a pmg"
+  [model]
+  model)
+
+(defn find-attr-vals
+  "Compute attribute values for a model."
+  [model attrs]
+  (let [n-ext-gen 0
+        cluster (concat [model] (repeatedly (extend-model model)
+                                        n-ext-gen))
+        cluster-data (map #(gen-data %) cluster)]
+    {:focal-model model
+     :cluster-attr-vals (map eval-attr-perms cluster-data attrs)}))
 
 ; Entry Point
 (defn suggest-ext
   [data models attrs]
   "Given some data it will suggest a (number of?) models and extensions.
   Suggest model and extension"
-  ; Either pass in all the data with subset of subexprs of interest, or just
-  ; filter the data to only include that what one needs?
-  (let [attr-vals (for [subexprs (combo/permutations (keys data))]
-                       (map #(eval-attr % subexprs data)
-                             (filter #(= (count subexprs) (count %)) attrs)))]
+        ; For each permutation of exprs, evaluate attributes
+  (let [attr-vals (eval-attr-perms data attrs)]
         ; posteriors (map #(eval-posterior attr-vals % attrs subexprs-data
         ;                                  var-bindings) 
         ;                 models)]
