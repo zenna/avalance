@@ -20,25 +20,6 @@
     []
     (concat [(f (first list) (second list))] (between f (rest list)))))
 
-(defn max-element
-  "Returns elements of list where f(elements) is maximal"
-  [list f]
-  (let [max-val (max (map f list))]
-    (filter (fn [x] (= (f x) max-val)) list)))
-
-(defn sum
-  [coll]
-  (reduce + coll))
-
-(defn rand-bool
-  "Return uniform over true,false"
-  (= (rand-int 2) 1))
-
-(defn rand-nth-categorical
-  "Choice element from list"
-  [list weights]
-  (nth list (rand-int (- (count list) 1))))
-
 ;TSP stuff
 (def init-tour [[2 0.1] [0.8 0.3] [0.2 0.16] [0.267 0.61]])
 

@@ -16,14 +16,16 @@
 
 (def power-model
   {:as-expr '(= y (Math/pow x n))
+  :dists {'n #(rand) 'x #(* 10 (rand))}
   :params ['n]
   :vars ['y 'x]
   :name 'power})
 
 (def linear-model
   {:as-expr '(= y (+ c (* m x)))
-   :params ['c 'm]
-   :vars ['y 'x]
+   :dists {'c #(rand) 'm #(rand) 'x #(* 10 (rand))}
+   :params '[c m]
+   :vars '[y x]
    :name 'linear})
 
 (def sin-model
@@ -32,6 +34,13 @@
    :params ['p]
    :vars ['y 'x]
    :name 'sin})
+
+(def constant-model
+  {:as-expr '(= y k)
+   :dists {'k #(* 10 (rand))}
+   :params ['k]
+   :vars ['y]
+   :name 'constant})
 
 (defn sample-vals
   "Return sampled vals sampled from distributions"
@@ -66,21 +75,13 @@
   [model]
   (assoc model :gen (decl-to-gen model)))
 
-(def constant-model
-  {:as-expr '(= y k)
-   :param-sampler {'k #(* 100 rand)}
-   :gen (fn [n-points] ())
-   :params ['k]
-   :vars ['y]
-   :name 'constant})
-
 (def models
   "Initial model set"
   (map add-gen-model
         [;constant-model
          ;exponent-model
-         ;linear-model
-         ;power-model
+         linear-model
+         power-model
          sin-model]))
 
 ; Error functions - all binary

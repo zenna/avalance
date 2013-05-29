@@ -2,7 +2,25 @@
       :author "Zenna Tavares"}
 avalance.suggest
   (:use avalance.grammar)
+  (:use clozen.helpers)
   (:require [clojure.math.combinatorics :as combo]))
+
+; Feature learning
+; Abstract out learning algorithm, try first classification error/but leave room for some information theoretic 
+
+; The values of the coefficients are important; they may affect whether there is a single mode, whether it is sloping downwards and so on.
+; This has implications for our feature learning, since 1) We don't want to miss hits to a model because our generative model has not covered a suitable range of coefficients 2) this dependence on coefficients can be utilised to constrain our search further.
+
+;However there is something certianly missing.  I use features of the data to infer constraints on the coefficients in a non-generative manner.  For instance if it passes through the origin
+
+; There are many intuitions we would like to capture, perhaps it is best to list examples
+
+; Noise!
+; Noiseless
+
+; TODO;
+; 2. Implement many generative models and generative model generator
+; 3. Incorporate n-ary argument attributes and models, mixture models and the like
 
 (defn match-selector
   "Selects a match.
@@ -44,18 +62,23 @@ avalance.suggest
 ; TODO - how will declarative-procedural component work?
 (def monotonic-attr
   {:decl '(= y k) ;TODO, write in declarative form
-   :proc (fn [a b] true)
+   :proc (fn [a b] (apply + b))
    :vars '[a b]
    :name 'monotonic-attr})
 
-(def smooth? 'is-smooth?)
-(def periodic? 'is-periodic)
-(def monotonic? 'monotonic?)
-(def attrs-funcs
-  {monotonic? (fn [a b]
-    true)})
+(def nil-attr
+  {:decl 'nil ;TODO, write in declarative form
+   :proc (fn [a b] nil)
+   :vars '[a b]
+   :name 'nil-attr})
+
+; (def smooth? 'is-smooth?)
+; (def periodic? 'is-periodic)
+; (def monotonic? 'monotonic?)
+
 (def all-attrs
-  [monotonic-attr])
+  [monotonic-attr
+   nil-attr])
 
 (defn eval-attr
   "Evaluate an attribute"
@@ -65,7 +88,8 @@ avalance.suggest
 
 (defn attr-val-compare
   "Compute the similarity between two attribute vectors"
-  [attr-vals1 attr-vals2])
+  [attr-vals1 attr-vals2]
+  1.0)
 
 (defn sample-model-instance
   "Models have parameters which have distributions
@@ -77,27 +101,27 @@ avalance.suggest
   Currently works only with functional models, asuming lhs is dependent
   variable and rhs independent."
   [model]
-  (let [n-model-samples 2
+  (let [n-model-samples 3
         n-points 10]
     (repeatedly n-model-samples #((:gen model) n-points))))
 
-(defn eval-posterior
-  "Evaluate the posterior of 'model in expression'"
-  [attr-vals model subexprs-data var-bindings])
-
 (defn eval-attr-perms
-  "Evaluate the attributes for all permutations of the data"
+  "Evaluate the attributes for all permutations of the data
+
+   Returns map, e.g. [{:subexprs [x y] attr-vals [1 2 3]}, ...]"
   [data attrs]
-  ; (println "DATA" data)
+  ; for every perm. of vars, apply all the relevant attributes
   (for [subexprs (combo/permutations (keys data))]
-                         (map #(eval-attr % subexprs data)
-                               (filter #(= (count subexprs) (count (:vars %))) 
-                                        attrs))))
+    {:subexprs subexprs
+     :attr-vals
+        (map #(eval-attr % subexprs data)
+             (filter #(= (count subexprs) (count (:vars %))) 
+                      attrs))}))
 ;TODO - incomplete
 (defn extend-model
   "extends a model using a pmg"
   [model]
-  model)
+  (assoc model :name 'extended-model))
 
 (defn find-attr-vals
   "Compute attribute values for a model."
@@ -106,19 +130,36 @@ avalance.suggest
         cluster (concat [model] (repeatedly n-ext-gen #(extend-model model)))
         cluster-data (apply concat (map #(gen-data %) cluster))]
     {:focal-model model
-     :cluster-attr-vals (map #(eval-attr-perms % attrs) cluster-data)}))
+     :cluster-attr-vals (apply concat 
+                               (map #(assoc-coll (eval-attr-perms %1 attrs)
+                                                 :model %2)
+                                cluster-data cluster))}))
+
+(defn eval-posterior
+  "Evaluate the posterior of 'model in expression'"
+  [attr-vals model-attr-vals]
+  (println "we made it")
+  (let [likelis (for [data-attr attr-vals
+                     model-attr model-attr-vals]
+                 {:data-attr data-attr :model-attr model-attr
+                  :likelihood
+                 (map #(attr-val-compare data-attr %)
+                      (:cluster-attr-vals model-attr))})
+        scores (map mean (extract likelis :likelihood))
+        {data-attr :data-attr model-attr :model-attr likelihood :likelihood}
+          (rand-nth-reciprocal-categorical likelis scores)]
+    (rand-nth-reciprocal-categorical
+      (:cluster-attr-vals model-attr) likelihood)))
 
 ; Entry Point
 (defn suggest-ext
-  [data models attrs]
+  [data models attrs model-attr-vals]
   "Given some data it will suggest a (number of?) models and extensions.
   Suggest model and extension"
         ; For each permutation of exprs, evaluate attributes
-  (let [attr-vals (eval-attr-perms data attrs)]
-        ; posteriors (map #(eval-posterior attr-vals % attrs subexprs-data
-        ;                                  var-bindings) 
-        ;                 models)]
-    attr-vals))
+  (let [attr-vals (eval-attr-perms data attrs)
+        posteriors (eval-posterior attr-vals model-attr-vals)]
+    posteriors))
     ; (rand-nth-reciprocal-categorical models posteriors)))
 
 (defn find-counter-factuals
