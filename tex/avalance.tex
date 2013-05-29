@@ -98,6 +98,28 @@
 
 \title{Theory as Program}
 
+% Overall structure:
+
+
+% To include
+Constrained simulation
+- The appeal of a simulation based account is appealing both for planning/AI purposes and as models of explanation.  
+A naive explanation, that we simulate possible worlds comes up wanting.
+First is the dimensionality
+I need not consider all possible movements in order to make a hand gesture, 
+
+Constrained search
+Constrained generative models
+
+Three projects
+Planning with constrained simulation
+Declarative Generative Models
+
+Origin of constraints
+User specified in a constraint language
+From the data
+
+
 % TODO:
 %I need a means of evaluating theories, I need to formalise this problem.  Write up my intuitions and send to Josh/Michael
 % Do I need the distribution around the model?
@@ -213,6 +235,35 @@ Success has been seen in cases, though for the reasons outlined in above, even m
 More unsatisfactory though are the large number of arbitrary parameters, huge computational cost, and almost complete absence of exploitation of structural information about the problem.
 
 The approach here attempts to counter on these two points; to increase the quality of our guesses, and to use information in the mistakes of our proposals to constrain following search.
+
+\section*{Constrained Generative Models}
+There are a number of avenues to explore these problems, varying principally in domain specificity, declarativeness of specification
+At the top level I wil delineate the methods as
+Declarative to generative model
+\subsection*{Optimise initial sample}.  Preliminary evidence has suggested that choosing a good initial sample has advantanges in convergence.
+Input: cost-function $f/rightarrow$
+Method: Optimise initial sample
+
+\subsection*{Transform naive generative model}.  The idea here is to given as input a naive generative model, and set of predicates, apply a series of semantics preserving transformations.
+
+\subsection*{Filter generative model}.  Given as input declarative constraints, the idea here is to derive a filter: a function that transforms a sample from a naive model to one hwich adheres to constraints.
+Examples of this are convex hull algorithms, cycle removing algorithms.
+
+Clearly there are many viable algorithms.
+
+\subsection*{Construct constrained generative model}
+
+\section{Origin and representation of constraints}
+
+
+\begin{itemize}
+\item A finite set $P$ of patterns, each consisting of a fixed non-zero number of matching variables. 
+\item A finite set $N$ of nonterminal symbols.
+\item A finite set $\Sigma$ of terminal symbols that is disjoint from N
+\item A finite set $R$ of parsing rules.
+\end{itemize}
+
+
 
 \section*{Model Classes}
 A model class $\mathcal{C}$ is a set of expression, defined declaratively as a set of rules.
