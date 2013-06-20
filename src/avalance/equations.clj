@@ -1,4 +1,6 @@
-(ns avalance.equations)
+(ns ^{:doc "Generate expressions from pcfg and make executable"
+      :author "Zenna Tavares"}
+  avalance.equations)
 
 (defn make-lambda
   [expr]
