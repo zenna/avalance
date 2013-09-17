@@ -1,10 +1,15 @@
-(ns ^{:doc "Suggest extensison to some expr."
-      :author "Zenna Tavares"}
+(ns ^{:author "Zenna Tavares"
+      :doc "Suggest extensison to some expr.
+
+            We are lookng for features of the data which will help us decide which model to choose.
+            We have a set of attributes, suffixed -attr 
+            "}
 avalance.suggest
   (:use avalance.grammar)
+  (:use avalance.attributes)
   (:use clozen.helpers)
   (:require [clojure.math.combinatorics :as combo]))
-
+) 
 ; Feature learning
 ; Abstract out learning algorithm, try first classification error/but leave room for some information theoretic 
 
@@ -51,72 +56,7 @@ avalance.suggest
           {:prod '*   :weight 1.0}
           {:prod '/   :weight 1.0}]}})
 
-; Attributes
-; TODO Definde declarative language here
-; so features can take varying numbers of arguments, I either need to give a hard constraint
-; that is, only use the correct number of features or do something more intelligent.
-; How to do this? 
-; Planning? 
 
-; TODO - how to account for attributes with varying number of parameters?
-; TODO - how will declarative-procedural component work?
-(def monotonic-attr
-  {:decl '(= y k) ;TODO, write in declarative form
-   :proc (fn [a b] (apply + b))
-   :vars '[a b]
-   :name 'monotonic-attr})
-
-(def nil-attr
-  {:decl 'nil ;TODO, write in declarative form
-   :proc (fn [a b] nil)
-   :vars '[a b]
-   :name 'nil-attr})
-
-; (def smooth? 'is-smooth?)
-; (def periodic? 'is-periodic)
-; (def monotonic? 'monotonic?)
-
-(def all-attrs
-  [monotonic-attr
-   nil-attr])
-
-(defn eval-attr
-  "Evaluate an attribute"
-  [attr subexprs data]
-  ; (println "ATTR" attr "\nDATA" data "\nsubexprs" subexprs )
-  (apply (:proc attr) (map #(data %) subexprs)))
-
-(defn attr-val-compare
-  "Compute the similarity between two attribute vectors"
-  [attr-vals1 attr-vals2]
-  1.0)
-
-(defn sample-model-instance
-  "Models have parameters which have distributions
-   to be evaluated we sample these parameters"
-   [model])
-
-(defn gen-data
-  "Generate data from a model.
-  Currently works only with functional models, asuming lhs is dependent
-  variable and rhs independent."
-  [model]
-  (let [n-model-samples 3
-        n-points 10]
-    (repeatedly n-model-samples #((:gen model) n-points))))
-
-(defn eval-attr-perms
-  "Evaluate the attributes for all permutations of the data
-
-   Returns map, e.g. [{:subexprs [x y] attr-vals [1 2 3]}, ...]"
-  [data attrs]
-  ; for every perm. of vars, apply all the relevant attributes
-  (for [subexprs (combo/permutations (keys data))]
-    {:subexprs subexprs
-     :attr-vals
-        (map #(eval-attr % subexprs data)
-             (filter #(= (count subexprs) (count (:vars %))) 
-                      attrs))}))
 ;TODO - incomplete
 (defn extend-model
   "extends a model using a pmg"
@@ -124,7 +64,9 @@ avalance.suggest
   (assoc model :name 'extended-model))
 
 (defn find-attr-vals
-  "Compute attribute values for a model."
+  "Compute attribute values for a model.
+   We find models 'around' a central model by extending it
+   through use of the pattern grammar"
   [model attrs]
   (let [n-ext-gen 1
         cluster (concat [model] (repeatedly n-ext-gen #(extend-model model)))
@@ -154,8 +96,8 @@ avalance.suggest
 ; Entry Point
 (defn suggest-ext
   [data models attrs model-attr-vals]
-  "Given some data it will suggest a (number of?) models and extensions.
-  Suggest model and extension"
+  "Given some data, suggest a (number of?) models and extensions.
+   Evaluate attributes of all permutations of data"
         ; For each permutation of exprs, evaluate attributes
   (let [attr-vals (eval-attr-perms data attrs)
         posteriors (eval-posterior attr-vals model-attr-vals)]

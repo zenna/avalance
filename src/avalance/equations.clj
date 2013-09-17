@@ -6,11 +6,6 @@
   [expr]
   (eval (list 'fn '[x] expr)))
 
-(defn make-lambda-args
-  "Make a function from an expression with some args"
-  [expr args]
-  (eval (list 'fn args expr)))
-
 ; Probabilstic context free grammar
 (def compound-pcfg
   {:start 'F
